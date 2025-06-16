@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Phone, Mail, Download, CheckCircle, XCircle, Trash2, Contact as FileContract, Heart } from 'lucide-react';
+import { FileText, Phone, Mail, Download, CheckCircle, XCircle, Trash2, Contact as FileContract, Heart, FileType } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -12,6 +12,7 @@ interface SignedUrls {
   [registrationId: string]: {
     invoice_url?: string;
     rib_url?: string;
+    motivation_letter_url?: string;
   };
 }
 
@@ -152,6 +153,10 @@ const RegistrationsTab: React.FC = () => {
         deletePromises.push(deleteFileFromStorage(selectedRegistration.rib_file_url));
       }
 
+      if (selectedRegistration.motivation_letter_url) {
+        deletePromises.push(deleteFileFromStorage(selectedRegistration.motivation_letter_url));
+      }
+
       // Wait for file deletions (but don't fail if they don't work)
       if (deletePromises.length > 0) {
         const deletionResults = await Promise.all(deletePromises);
@@ -260,31 +265,45 @@ const RegistrationsTab: React.FC = () => {
 
       setRegistrations(enhancedRegistrations);
 
-      // Generate signed URLs for each registration's files (only for non-volunteer contracts)
+      // Generate signed URLs for each registration's files
       if (enhancedRegistrations && enhancedRegistrations.length > 0) {
-        const urlPromises = enhancedRegistrations
-          .filter(reg => !reg.contract_info?.is_volunteer) // Only for non-volunteer contracts
-          .map(async (registration) => {
-            const [invoiceUrl, ribUrl] = await Promise.all([
+        const urlPromises = enhancedRegistrations.map(async (registration) => {
+          const isVolunteer = registration.contract_info?.is_volunteer;
+          
+          let invoiceUrl, ribUrl, motivationLetterUrl;
+          
+          if (isVolunteer) {
+            // For volunteer contracts, only get motivation letter
+            if (registration.motivation_letter_url) {
+              motivationLetterUrl = await generateSignedUrl(registration.motivation_letter_url);
+            }
+          } else {
+            // For paid contracts, get invoice and RIB
+            const [invoice, rib] = await Promise.all([
               generateSignedUrl(registration.invoice_file_url),
               generateSignedUrl(registration.rib_file_url)
             ]);
+            invoiceUrl = invoice;
+            ribUrl = rib;
+          }
 
-            return {
-              id: registration.id,
-              invoice_url: invoiceUrl,
-              rib_url: ribUrl
-            };
-          });
+          return {
+            id: registration.id,
+            invoice_url: invoiceUrl,
+            rib_url: ribUrl,
+            motivation_letter_url: motivationLetterUrl
+          };
+        });
 
         const urlResults = await Promise.all(urlPromises);
         const urlMap: SignedUrls = {};
         
         urlResults.forEach(result => {
-          if (result.invoice_url || result.rib_url) {
+          if (result.invoice_url || result.rib_url || result.motivation_letter_url) {
             urlMap[result.id] = {
               invoice_url: result.invoice_url || undefined,
-              rib_url: result.rib_url || undefined
+              rib_url: result.rib_url || undefined,
+              motivation_letter_url: result.motivation_letter_url || undefined
             };
           }
         });
@@ -465,14 +484,32 @@ const RegistrationsTab: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Show volunteer status for volunteer contracts */}
+                  {/* Show motivation letter download for volunteer contracts */}
                   {registration.contract_info?.is_volunteer && (
                     <div className="bg-pink-50 border border-pink-200 rounded-lg p-3">
-                      <div className="flex items-center space-x-2 text-pink-800">
-                        <Heart size={16} />
-                        <span className="font-medium">Intervention bénévole</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2 text-pink-800">
+                          <Heart size={16} />
+                          <span className="font-medium">Intervention bénévole</span>
+                        </div>
+                        {signedUrls[registration.id]?.motivation_letter_url ? (
+                          <a
+                            href={signedUrls[registration.id].motivation_letter_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center space-x-2 text-pink-600 hover:text-pink-800 text-sm font-medium"
+                          >
+                            <FileType size={16} />
+                            <span>Télécharger lettre de motivation</span>
+                          </a>
+                        ) : (
+                          <span className="flex items-center space-x-2 text-gray-400 text-sm">
+                            <FileType size={16} />
+                            <span>Lettre de motivation (indisponible)</span>
+                          </span>
+                        )}
                       </div>
-                      <p className="text-sm text-pink-700 mt-1">
+                      <p className="text-sm text-pink-700">
                         Aucun document financier requis - Attestation de volontariat {
                           registration.volunteer_attestation_accepted ? 'acceptée' : 'en attente'
                         }
@@ -498,7 +535,7 @@ const RegistrationsTab: React.FC = () => {
         onConfirm={handleDeleteConfirm}
         title="Supprimer l'inscription"
         message={selectedRegistration ? 
-          `Êtes-vous sûr de vouloir supprimer l'inscription de ${selectedRegistration.first_name} ${selectedRegistration.last_name} ?\n\nCette action supprimera également les fichiers associés (facture et RIB) et ne peut pas être annulée.` : 
+          `Êtes-vous sûr de vouloir supprimer l'inscription de ${selectedRegistration.first_name} ${selectedRegistration.last_name} ?\n\nCette action supprimera également les fichiers associés (facture/RIB ou lettre de motivation) et ne peut pas être annulée.` : 
           ''
         }
         confirmText="Supprimer définitivement"

@@ -40,6 +40,7 @@ export interface TrainerRegistration {
   volunteer_attestation_accepted: boolean;
   invoice_file_url: string;
   rib_file_url: string;
+  motivation_letter_url?: string;
   registered_at?: string;
   // Contract-related fields
   company_name?: string;
