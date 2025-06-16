@@ -21,6 +21,7 @@ export interface WorkshopTrainer {
   workshop_date: string;
   trainer_code: string;
   is_claimed: boolean;
+  code_sent: boolean;
   created_at?: string;
 }
 
@@ -87,6 +88,7 @@ export interface ClientContract {
   client_company_registration: string;
   signature_code: string;
   is_signed: boolean;
+  code_sent: boolean;
   signed_at?: string;
   created_at?: string;
 }

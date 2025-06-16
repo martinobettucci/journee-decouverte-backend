@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Key, Settings, FileSignature, FileText, CheckCircle, XCircle, AlertTriangle, Users, UserCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, Key, Settings, FileSignature, FileText, CheckCircle, XCircle, AlertTriangle, Users, UserCheck, Mail, MailCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -186,6 +186,23 @@ const WorkshopsTab: React.FC = () => {
     setShowClientContractViewer(true);
   };
 
+  const handleToggleClientCodeSent = async (clientContract: ClientContract) => {
+    try {
+      const { error } = await supabase
+        .from('client_contracts')
+        .update({ code_sent: !clientContract.code_sent })
+        .eq('id', clientContract.id);
+
+      if (error) throw error;
+      
+      // Refresh the workshops list
+      fetchWorkshops();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut d\'envoi:', error);
+      alert('Erreur lors de la mise à jour du statut d\'envoi du code signature');
+    }
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingWorkshop(null);
@@ -355,13 +372,26 @@ const WorkshopsTab: React.FC = () => {
                           <FileSignature size={18} />
                         </button>
                         {workshop.client_contract && (
-                          <button
-                            onClick={() => handleViewClientContract(workshop.client_contract!)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Visualiser/Imprimer le contrat client"
-                          >
-                            <FileText size={18} />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleViewClientContract(workshop.client_contract!)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Visualiser/Imprimer le contrat client"
+                            >
+                              <FileText size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleToggleClientCodeSent(workshop.client_contract!)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                workshop.client_contract.code_sent
+                                  ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                                  : 'text-gray-600 bg-gray-50 hover:bg-gray-100'
+                              }`}
+                              title={workshop.client_contract.code_sent ? 'Marquer code comme non envoyé' : 'Marquer code comme envoyé'}
+                            >
+                              {workshop.client_contract.code_sent ? <MailCheck size={18} /> : <Mail size={18} />}
+                            </button>
+                          </>
                         )}
                       </div>
 
@@ -384,6 +414,23 @@ const WorkshopsTab: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Client contract code sent status */}
+                  {workshop.client_contract && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-600">
+                          Code signature: <code className="bg-gray-100 px-2 py-1 rounded font-mono">{workshop.client_contract.signature_code}</code>
+                        </div>
+                        <div className={`flex items-center space-x-2 text-sm ${
+                          workshop.client_contract.code_sent ? 'text-green-600' : 'text-gray-500'
+                        }`}>
+                          {workshop.client_contract.code_sent ? <MailCheck size={16} /> : <Mail size={16} />}
+                          <span>{workshop.client_contract.code_sent ? 'Code envoyé' : 'Code non envoyé'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })

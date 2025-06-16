@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Users, CheckCircle, XCircle, Contact as FileContract, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, CheckCircle, XCircle, Contact as FileContract, AlertCircle, RefreshCw, Mail, MailCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase, testConnection } from '../lib/supabase';
@@ -143,6 +143,23 @@ const TrainersTab: React.FC = () => {
     }
   };
 
+  const handleToggleTrainerCodeSent = async (trainerId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('workshop_trainers')
+        .update({ code_sent: !currentStatus })
+        .eq('id', trainerId);
+
+      if (error) throw error;
+      
+      // Refresh the trainers list
+      fetchTrainers();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut d\'envoi:', error);
+      setError('Erreur lors de la mise à jour du statut d\'envoi du code');
+    }
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingTrainer(null);
@@ -270,6 +287,9 @@ const TrainersTab: React.FC = () => {
                   Contrat Affecté
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Code Envoyé
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date de Création
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -280,7 +300,7 @@ const TrainersTab: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {trainers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     Aucun formateur trouvé
                   </td>
                 </tr>
@@ -322,6 +342,24 @@ const TrainersTab: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getContractBadge(trainer.assigned_contract)}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleToggleTrainerCodeSent(trainer.id, trainer.code_sent)}
+                        className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                          trainer.code_sent
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                        title={trainer.code_sent ? 'Marquer comme non envoyé' : 'Marquer comme envoyé'}
+                      >
+                        {trainer.code_sent ? (
+                          <MailCheck size={16} />
+                        ) : (
+                          <Mail size={16} />
+                        )}
+                        <span>{trainer.code_sent ? 'Envoyé' : 'Non envoyé'}</span>
+                      </button>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {trainer.created_at && format(new Date(trainer.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
                     </td>
@@ -353,7 +391,7 @@ const TrainersTab: React.FC = () => {
 
       {/* Statistics Summary */}
       {trainers.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="bg-white p-4 rounded-lg border border-gray-200">
             <div className="flex items-center space-x-2">
               <Users className="text-blue-600" size={20} />
@@ -379,6 +417,16 @@ const TrainersTab: React.FC = () => {
             </div>
             <p className="text-2xl font-bold text-gray-900 mt-1">
               {trainers.filter(t => t.assigned_contract).length}
+            </p>
+          </div>
+
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="flex items-center space-x-2">
+              <MailCheck className="text-green-600" size={20} />
+              <span className="text-sm font-medium text-gray-700">Codes Envoyés</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
+              {trainers.filter(t => t.code_sent).length}
             </p>
           </div>
           
