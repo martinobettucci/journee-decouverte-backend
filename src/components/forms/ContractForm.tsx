@@ -268,7 +268,6 @@ Le Volontaire atteste par les présentes qu'il intervient de manière totalement
 Fait à Paris, le [DATE_DU_JOUR].
 
 **Placeholders disponibles :**
-- [NOM_ENTREPRISE] : Nom de l'organisation du volontaire
 - [NOM_REPRESENTANT] : Nom du volontaire
 - [ADRESSE_SIEGE] : Adresse du volontaire/organisation
 - [EMAIL_REPRESENTANT] : Email du volontaire
@@ -569,12 +568,21 @@ Fait à Paris, le [DATE_DU_JOUR].
                   <strong>Placeholders {formData.type === 'trainer' ? 'Formateur' : 'Client'} :</strong>
                 </p>
                 {formData.type === 'trainer' ? (
-                  <p>
-                    [NOM_ENTREPRISE], [FORME_JURIDIQUE], [CAPITAL_SOCIAL], [RCS_VILLE], [NUMERO_RCS], 
-                    [ADRESSE_SIEGE], [NOM_REPRESENTANT], [FONCTION_REPRESENTANT], [NOM_ABREGE_ENTREPRISE], 
-                    [EMAIL_REPRESENTANT], [DATE_DU_JOUR]
-                  </p>
+                  formData.is_volunteer ? (
+                    /* Volunteer contract placeholders - only show the restricted set */
+                    <p className="text-pink-700 bg-pink-50 p-2 rounded border border-pink-200">
+                      <strong>Contrat bénévole :</strong> [NOM_REPRESENTANT], [ADRESSE_SIEGE], [EMAIL_REPRESENTANT], [DATE_DU_JOUR]
+                    </p>
+                  ) : (
+                    /* Regular trainer contract placeholders */
+                    <p>
+                      [NOM_ENTREPRISE], [FORME_JURIDIQUE], [CAPITAL_SOCIAL], [RCS_VILLE], [NUMERO_RCS], 
+                      [ADRESSE_SIEGE], [NOM_REPRESENTANT], [FONCTION_REPRESENTANT], [NOM_ABREGE_ENTREPRISE], 
+                      [EMAIL_REPRESENTANT], [DATE_DU_JOUR]
+                    </p>
+                  )
                 ) : (
+                  /* Client contract placeholders */
                   <p>
                     [CLIENT_COMPANY_NAME], [CLIENT_REPRESENTATIVE_NAME], [CLIENT_ADDRESS], [CLIENT_EMAIL], 
                     [CLIENT_COMPANY_REGISTRATION], [SIGNATURE_CODE], [WORKSHOP_DATE], [DATE_DU_JOUR], [SIGNATURE_STATUS]
