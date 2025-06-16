@@ -10,9 +10,8 @@ import type { TrainerRegistration, ContractTemplate } from '../types/database';
 
 interface SignedUrls {
   [registrationId: string]: {
-    invoice_url?: string;
+    invoice_url?: string; // For paid contracts: invoice PDF, for volunteer contracts: motivation letter PDF
     rib_url?: string;
-    motivation_letter_url?: string;
   };
 }
 
@@ -25,7 +24,7 @@ interface RegistrationWithContract extends TrainerRegistration {
 
 const RegistrationsTab: React.FC = () => {
   const [registrations, setRegistrations] = useState<RegistrationWithContract[]>([]);
-  const [signedUrls, setSignedUrls] = useState<SignedUrls>({});
+  const [signedUrls, setSignedUrls] = useState<SignedUrls>({]);
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [notificationModalOpen, setNotificationModalOpen] = useState(false);
@@ -49,6 +48,11 @@ const RegistrationsTab: React.FC = () => {
 
   const generateSignedUrl = async (filePath: string): Promise<string | null> => {
     try {
+      // Check if this is a volunteer placeholder
+      if (filePath === 'volunteer_no_motivation_provided' || filePath.includes('volunteer_no_motivation_provided')) {
+        return null;
+      }
+
       let pathInBucket: string;
       
       // Check if filePath is a full Supabase storage URL
@@ -87,6 +91,11 @@ const RegistrationsTab: React.FC = () => {
 
   const extractFilePathFromUrl = (fileUrl: string): string | null => {
     try {
+      // Don't process volunteer placeholders
+      if (fileUrl === 'volunteer_no_motivation_provided' || fileUrl.includes('volunteer_no_motivation_provided')) {
+        return fileUrl;
+      }
+
       if (fileUrl.includes('supabase.co/storage/v1/object/')) {
         const bucketName = 'trainer-documents';
         const bucketIndex = fileUrl.indexOf(`/${bucketName}/`);
@@ -104,6 +113,11 @@ const RegistrationsTab: React.FC = () => {
 
   const deleteFileFromStorage = async (fileUrl: string): Promise<boolean> => {
     try {
+      // Don't try to delete volunteer placeholders
+      if (fileUrl === 'volunteer_no_motivation_provided' || fileUrl.includes('volunteer_no_motivation_provided')) {
+        return true; // Consider this successful as there's nothing to delete
+      }
+
       const filePath = extractFilePathFromUrl(fileUrl);
       if (!filePath) {
         console.warn('Could not extract file path from URL:', fileUrl);
@@ -151,10 +165,6 @@ const RegistrationsTab: React.FC = () => {
       
       if (selectedRegistration.rib_file_url) {
         deletePromises.push(deleteFileFromStorage(selectedRegistration.rib_file_url));
-      }
-
-      if (selectedRegistration.motivation_letter_url) {
-        deletePromises.push(deleteFileFromStorage(selectedRegistration.motivation_letter_url));
       }
 
       // Wait for file deletions (but don't fail if they don't work)
@@ -207,6 +217,13 @@ const RegistrationsTab: React.FC = () => {
   const handleContractModalClose = () => {
     setContractModalOpen(false);
     setSelectedRegistration(null);
+  };
+
+  const isMotivationLetterAvailable = (registration: RegistrationWithContract): boolean => {
+    if (!registration.contract_info?.is_volunteer) return false;
+    if (!registration.invoice_file_url) return false;
+    if (registration.invoice_file_url === 'volunteer_no_motivation_provided') return false;
+    return true;
   };
 
   const fetchRegistrations = async () => {
@@ -270,15 +287,15 @@ const RegistrationsTab: React.FC = () => {
         const urlPromises = enhancedRegistrations.map(async (registration) => {
           const isVolunteer = registration.contract_info?.is_volunteer;
           
-          let invoiceUrl, ribUrl, motivationLetterUrl;
+          let invoiceUrl, ribUrl;
           
           if (isVolunteer) {
-            // For volunteer contracts, only get motivation letter
-            if (registration.motivation_letter_url) {
-              motivationLetterUrl = await generateSignedUrl(registration.motivation_letter_url);
+            // For volunteer contracts, invoice_file_url contains motivation letter or placeholder
+            if (isMotivationLetterAvailable(registration)) {
+              invoiceUrl = await generateSignedUrl(registration.invoice_file_url);
             }
           } else {
-            // For paid contracts, get invoice and RIB
+            // For paid contracts, get both invoice and RIB
             const [invoice, rib] = await Promise.all([
               generateSignedUrl(registration.invoice_file_url),
               generateSignedUrl(registration.rib_file_url)
@@ -290,8 +307,7 @@ const RegistrationsTab: React.FC = () => {
           return {
             id: registration.id,
             invoice_url: invoiceUrl,
-            rib_url: ribUrl,
-            motivation_letter_url: motivationLetterUrl
+            rib_url: ribUrl
           };
         });
 
@@ -299,11 +315,10 @@ const RegistrationsTab: React.FC = () => {
         const urlMap: SignedUrls = {};
         
         urlResults.forEach(result => {
-          if (result.invoice_url || result.rib_url || result.motivation_letter_url) {
+          if (result.invoice_url || result.rib_url) {
             urlMap[result.id] = {
               invoice_url: result.invoice_url || undefined,
-              rib_url: result.rib_url || undefined,
-              motivation_letter_url: result.motivation_letter_url || undefined
+              rib_url: result.rib_url || undefined
             };
           }
         });
@@ -492,9 +507,9 @@ const RegistrationsTab: React.FC = () => {
                           <Heart size={16} />
                           <span className="font-medium">Intervention bénévole</span>
                         </div>
-                        {signedUrls[registration.id]?.motivation_letter_url ? (
+                        {isMotivationLetterAvailable(registration) && signedUrls[registration.id]?.invoice_url ? (
                           <a
-                            href={signedUrls[registration.id].motivation_letter_url}
+                            href={signedUrls[registration.id].invoice_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 text-pink-600 hover:text-pink-800 text-sm font-medium"
@@ -505,7 +520,12 @@ const RegistrationsTab: React.FC = () => {
                         ) : (
                           <span className="flex items-center space-x-2 text-gray-400 text-sm">
                             <FileType size={16} />
-                            <span>Lettre de motivation (indisponible)</span>
+                            <span>
+                              {registration.invoice_file_url === 'volunteer_no_motivation_provided' 
+                                ? 'Aucune lettre de motivation fournie' 
+                                : 'Lettre de motivation (indisponible)'
+                              }
+                            </span>
                           </span>
                         )}
                       </div>
@@ -514,6 +534,9 @@ const RegistrationsTab: React.FC = () => {
                           registration.volunteer_attestation_accepted ? 'acceptée' : 'en attente'
                         }
                       </p>
+                      <div className="mt-2 text-xs text-pink-600">
+                        <strong>Chemin de stockage attendu:</strong> {registration.workshop_date}/{registration.trainer_code}/motivation_[horodatage].pdf
+                      </div>
                     </div>
                   )}
 

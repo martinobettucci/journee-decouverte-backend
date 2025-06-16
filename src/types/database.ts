@@ -38,9 +38,8 @@ export interface TrainerRegistration {
   professional_compliance_accepted: boolean;
   event_guidelines_accepted: boolean;
   volunteer_attestation_accepted: boolean;
-  invoice_file_url: string;
+  invoice_file_url: string; // For paid contracts: invoice PDF, for volunteer contracts: motivation letter PDF or placeholder
   rib_file_url: string;
-  motivation_letter_url?: string;
   registered_at?: string;
   // Contract-related fields
   company_name?: string;
