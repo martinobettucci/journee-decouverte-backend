@@ -378,7 +378,7 @@ const EventForm: React.FC<EventFormProps> = ({ event, onClose, onSave }) => {
 
             <div className="text-xs text-gray-500">
               <p><strong>Format de stockage :</strong> Les données sont stockées en JSON avec les champs name, role, et linkedIn.</p>
-              <p><strong>Exemple :</strong> [{"name": "Martino Bettucci", "role": "Intervenant", "linkedIn": "https://www.linkedin.com/in/martinobettucci/"}]</p>
+              <p><strong>Exemple :</strong> [&lbrace;"name": "Martino Bettucci", "role": "Intervenant", "linkedIn": "https://www.linkedin.com/in/martinobettucci/"&rbrace;]</p>
             </div>
           </div>
 
