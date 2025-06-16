@@ -12,6 +12,7 @@ interface SignedUrls {
   [registrationId: string]: {
     invoice_url?: string;
     rib_url?: string;
+    volunteer_attestation_url?: string;
   };
 }
 
@@ -144,12 +145,18 @@ const RegistrationsTab: React.FC = () => {
       // Delete files from storage first
       const deletePromises = [];
       
+      // Delete invoice and RIB files for non-volunteer contracts
       if (selectedRegistration.invoice_file_url) {
         deletePromises.push(deleteFileFromStorage(selectedRegistration.invoice_file_url));
       }
       
       if (selectedRegistration.rib_file_url) {
         deletePromises.push(deleteFileFromStorage(selectedRegistration.rib_file_url));
+      }
+
+      // Delete volunteer attestation file for volunteer contracts
+      if (selectedRegistration.volunteer_attestation_file_url) {
+        deletePromises.push(deleteFileFromStorage(selectedRegistration.volunteer_attestation_file_url));
       }
 
       // Wait for file deletions (but don't fail if they don't work)
@@ -260,11 +267,23 @@ const RegistrationsTab: React.FC = () => {
 
       setRegistrations(enhancedRegistrations);
 
-      // Generate signed URLs for each registration's files (only for non-volunteer contracts)
+      // Generate signed URLs for each registration's files
       if (enhancedRegistrations && enhancedRegistrations.length > 0) {
-        const urlPromises = enhancedRegistrations
-          .filter(reg => !reg.contract_info?.is_volunteer) // Only for non-volunteer contracts
-          .map(async (registration) => {
+        const urlPromises = enhancedRegistrations.map(async (registration) => {
+          const isVolunteer = registration.contract_info?.is_volunteer;
+          
+          if (isVolunteer) {
+            // For volunteer contracts, only generate URL for attestation file
+            const attestationUrl = registration.volunteer_attestation_file_url 
+              ? await generateSignedUrl(registration.volunteer_attestation_file_url)
+              : null;
+
+            return {
+              id: registration.id,
+              volunteer_attestation_url: attestationUrl || undefined
+            };
+          } else {
+            // For non-volunteer contracts, generate URLs for invoice and RIB
             const [invoiceUrl, ribUrl] = await Promise.all([
               generateSignedUrl(registration.invoice_file_url),
               generateSignedUrl(registration.rib_file_url)
@@ -272,19 +291,21 @@ const RegistrationsTab: React.FC = () => {
 
             return {
               id: registration.id,
-              invoice_url: invoiceUrl,
-              rib_url: ribUrl
+              invoice_url: invoiceUrl || undefined,
+              rib_url: ribUrl || undefined
             };
-          });
+          }
+        });
 
         const urlResults = await Promise.all(urlPromises);
         const urlMap: SignedUrls = {};
         
         urlResults.forEach(result => {
-          if (result.invoice_url || result.rib_url) {
+          if (result.invoice_url || result.rib_url || result.volunteer_attestation_url) {
             urlMap[result.id] = {
-              invoice_url: result.invoice_url || undefined,
-              rib_url: result.rib_url || undefined
+              invoice_url: result.invoice_url,
+              rib_url: result.rib_url,
+              volunteer_attestation_url: result.volunteer_attestation_url
             };
           }
         });
@@ -426,8 +447,43 @@ const RegistrationsTab: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Show file downloads for non-volunteer contracts */}
-                  {!registration.contract_info?.is_volunteer && (
+                  {/* Show file downloads based on contract type */}
+                  {registration.contract_info?.is_volunteer ? (
+                    /* Volunteer contract - show attestation download */
+                    <div className="space-y-4">
+                      <div className="flex space-x-4">
+                        {signedUrls[registration.id]?.volunteer_attestation_url ? (
+                          <a
+                            href={signedUrls[registration.id].volunteer_attestation_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center space-x-2 text-pink-600 hover:text-pink-800 text-sm"
+                          >
+                            <Download size={16} />
+                            <span>Attestation de volontariat</span>
+                          </a>
+                        ) : (
+                          <span className="flex items-center space-x-2 text-gray-400 text-sm">
+                            <Download size={16} />
+                            <span>Attestation (indisponible)</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="bg-pink-50 border border-pink-200 rounded-lg p-3">
+                        <div className="flex items-center space-x-2 text-pink-800">
+                          <Heart size={16} />
+                          <span className="font-medium">Intervention bénévole</span>
+                        </div>
+                        <p className="text-sm text-pink-700 mt-1">
+                          Aucun document financier requis - Attestation de volontariat {
+                            registration.volunteer_attestation_accepted ? 'acceptée' : 'en attente'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Non-volunteer contract - show invoice and RIB downloads */
                     <div className="flex space-x-4">
                       {signedUrls[registration.id]?.invoice_url ? (
                         <a
@@ -465,21 +521,6 @@ const RegistrationsTab: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Show volunteer status for volunteer contracts */}
-                  {registration.contract_info?.is_volunteer && (
-                    <div className="bg-pink-50 border border-pink-200 rounded-lg p-3">
-                      <div className="flex items-center space-x-2 text-pink-800">
-                        <Heart size={16} />
-                        <span className="font-medium">Intervention bénévole</span>
-                      </div>
-                      <p className="text-sm text-pink-700 mt-1">
-                        Aucun document financier requis - Attestation de volontariat {
-                          registration.volunteer_attestation_accepted ? 'acceptée' : 'en attente'
-                        }
-                      </p>
-                    </div>
-                  )}
-
                   {registration.registered_at && (
                     <div className="mt-3 text-xs text-gray-500">
                       Inscrit le {format(new Date(registration.registered_at), 'dd MMMM yyyy à HH:mm', { locale: fr })}
@@ -498,7 +539,7 @@ const RegistrationsTab: React.FC = () => {
         onConfirm={handleDeleteConfirm}
         title="Supprimer l'inscription"
         message={selectedRegistration ? 
-          `Êtes-vous sûr de vouloir supprimer l'inscription de ${selectedRegistration.first_name} ${selectedRegistration.last_name} ?\n\nCette action supprimera également les fichiers associés (facture et RIB) et ne peut pas être annulée.` : 
+          `Êtes-vous sûr de vouloir supprimer l'inscription de ${selectedRegistration.first_name} ${selectedRegistration.last_name} ?\n\nCette action supprimera également les fichiers associés (facture, RIB ou attestation de volontariat) et ne peut pas être annulée.` : 
           ''
         }
         confirmText="Supprimer définitivement"
