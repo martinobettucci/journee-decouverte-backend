@@ -24,12 +24,12 @@ interface RegistrationWithContract extends TrainerRegistration {
 
 const RegistrationsTab: React.FC = () => {
   const [registrations, setRegistrations] = useState<RegistrationWithContract[]>([]);
-  const [signedUrls, setSignedUrls] = useState<SignedUrls>({]);
+  const [signedUrls, setSignedUrls] = useState<SignedUrls>({});
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [notificationModalOpen, setNotificationModalOpen] = useState(false);
   const [contractModalOpen, setContractModalOpen] = useState(false);
-  const [selectedRegistration, setSelectedRegistration] = useState<TrainerRegistration | null>(null);
+  const [selectedRegistration, setSelectedRegistration] = useState<RegistrationWithContract | null>(null);
   const [notification, setNotification] = useState<{
     title: string;
     message: string;
@@ -140,12 +140,12 @@ const RegistrationsTab: React.FC = () => {
     }
   };
 
-  const handleDeleteClick = (registration: TrainerRegistration) => {
+  const handleDeleteClick = (registration: RegistrationWithContract) => {
     setSelectedRegistration(registration);
     setDeleteModalOpen(true);
   };
 
-  const handleGenerateContractClick = (registration: TrainerRegistration) => {
+  const handleGenerateContractClick = (registration: RegistrationWithContract) => {
     setSelectedRegistration(registration);
     setContractModalOpen(true);
   };
