@@ -66,17 +66,17 @@ const TrainersTab: React.FC = () => {
                   type
                 )
               `)
-              .eq('trainer_id', trainer.id)
-              .single();
+              .eq('trainer_id', trainer.id);
 
-            if (assignmentError && assignmentError.code !== 'PGRST116') {
+            if (assignmentError) {
               console.warn('Error fetching assignment for trainer', trainer.trainer_code, ':', assignmentError);
             }
 
-            const assignedContract = assignmentData?.contract_templates ? {
-              id: assignmentData.contract_templates.id,
-              name: assignmentData.contract_templates.name,
-              type: assignmentData.contract_templates.type
+            // Handle the case where assignmentData is an array (could be empty or have elements)
+            const assignedContract = assignmentData && assignmentData.length > 0 && assignmentData[0].contract_templates ? {
+              id: assignmentData[0].contract_templates.id,
+              name: assignmentData[0].contract_templates.name,
+              type: assignmentData[0].contract_templates.type
             } : undefined;
 
             return {
