@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Users, CheckCircle, XCircle, Contact as FileContract, AlertCircle, RefreshCw, Mail, MailCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, CheckCircle, XCircle, Contact as FileContract, AlertCircle, RefreshCw, Mail, MailCheck, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase, testConnection } from '../lib/supabase';
@@ -14,17 +14,28 @@ interface TrainerWithContract extends WorkshopTrainer {
   };
 }
 
-const TrainersTab: React.FC = () => {
+interface TrainersTabProps {
+  initialFilterDate: string | null;
+  allWorkshopDates: string[];
+  onFilterChange: (date: string | null) => void;
+}
+
+const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorkshopDates, onFilterChange }) => {
   const [trainers, setTrainers] = useState<TrainerWithContract[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingTrainer, setEditingTrainer] = useState<WorkshopTrainer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [filterDate, setFilterDate] = useState<string | null>(initialFilterDate);
+
+  useEffect(() => {
+    setFilterDate(initialFilterDate);
+  }, [initialFilterDate]);
 
   useEffect(() => {
     fetchTrainers();
-  }, []);
+  }, [filterDate]);
 
   const fetchTrainers = async () => {
     try {
@@ -37,11 +48,17 @@ const TrainersTab: React.FC = () => {
         throw new Error(`Connection failed: ${connectionTest.message}`);
       }
 
-      // First get all trainers
-      const { data: trainersData, error: trainersError } = await supabase
+      // Build query with optional filter
+      let query = supabase
         .from('workshop_trainers')
         .select('*')
         .order('workshop_date', { ascending: false });
+
+      if (filterDate) {
+        query = query.eq('workshop_date', filterDate);
+      }
+
+      const { data: trainersData, error: trainersError } = await query;
 
       if (trainersError) {
         console.error('Supabase error details:', trainersError);
@@ -160,6 +177,17 @@ const TrainersTab: React.FC = () => {
     }
   };
 
+  const handleFilterChange = (newDate: string) => {
+    const dateValue = newDate === '' ? null : newDate;
+    setFilterDate(dateValue);
+    onFilterChange(dateValue);
+  };
+
+  const clearFilter = () => {
+    setFilterDate(null);
+    onFilterChange(null);
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingTrainer(null);
@@ -269,6 +297,44 @@ const TrainersTab: React.FC = () => {
         </button>
       </div>
 
+      {/* Filter Section */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="text-gray-600" size={20} />
+              <span className="text-sm font-medium text-gray-700">Filtrer par atelier:</span>
+            </div>
+            <select
+              value={filterDate || ''}
+              onChange={(e) => handleFilterChange(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Tous les ateliers</option>
+              {allWorkshopDates.map(date => (
+                <option key={date} value={date}>
+                  {format(new Date(date), 'dd MMMM yyyy', { locale: fr })}
+                </option>
+              ))}
+            </select>
+            {filterDate && (
+              <button
+                onClick={clearFilter}
+                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                <X size={16} />
+                <span>Effacer</span>
+              </button>
+            )}
+          </div>
+          {filterDate && (
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">{trainers.length}</span> formateur(s) pour l'atelier du {format(new Date(filterDate), 'dd MMMM yyyy', { locale: fr })}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -301,7 +367,7 @@ const TrainersTab: React.FC = () => {
               {trainers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    Aucun formateur trouvé
+                    {filterDate ? 'Aucun formateur trouvé pour cet atelier' : 'Aucun formateur trouvé'}
                   </td>
                 </tr>
               ) : (

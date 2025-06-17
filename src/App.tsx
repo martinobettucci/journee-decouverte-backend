@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navigation from './components/Navigation';
 import EventsTab from './components/EventsTab';
 import WorkshopsTab from './components/WorkshopsTab';
@@ -6,24 +6,88 @@ import TrainersTab from './components/TrainersTab';
 import ContractsTab from './components/ContractsTab';
 import RegistrationsTab from './components/RegistrationsTab';
 import GuidelinesTab from './components/GuidelinesTab';
+import { supabase } from './lib/supabase';
 
 function App() {
   const [activeTab, setActiveTab] = useState('events');
+  const [selectedWorkshopDate, setSelectedWorkshopDate] = useState<string | null>(null);
+  const [allWorkshopDates, setAllWorkshopDates] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchWorkshopDates();
+  }, []);
+
+  const fetchWorkshopDates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('workshop_passwords')
+        .select('date')
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      setAllWorkshopDates(data?.map(w => w.date) || []);
+    } catch (error) {
+      console.error('Error fetching workshop dates:', error);
+    }
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    // Clear the filter when manually changing tabs
+    setSelectedWorkshopDate(null);
+  };
+
+  const handleNavigateWithFilter = (tab: string, workshopDate?: string) => {
+    setActiveTab(tab);
+    setSelectedWorkshopDate(workshopDate || null);
+  };
+
+  const handleFilterChange = (date: string | null) => {
+    setSelectedWorkshopDate(date);
+  };
 
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'events':
         return <EventsTab />;
       case 'workshops':
-        return <WorkshopsTab />;
+        return (
+          <WorkshopsTab 
+            onNavigateWithFilter={handleNavigateWithFilter}
+          />
+        );
       case 'trainers':
-        return <TrainersTab />;
+        return (
+          <TrainersTab 
+            initialFilterDate={selectedWorkshopDate}
+            allWorkshopDates={allWorkshopDates}
+            onFilterChange={handleFilterChange}
+          />
+        );
       case 'contracts':
-        return <ContractsTab />;
+        return (
+          <ContractsTab 
+            initialFilterDate={selectedWorkshopDate}
+            allWorkshopDates={allWorkshopDates}
+            onFilterChange={handleFilterChange}
+          />
+        );
       case 'registrations':
-        return <RegistrationsTab />;
+        return (
+          <RegistrationsTab 
+            initialFilterDate={selectedWorkshopDate}
+            allWorkshopDates={allWorkshopDates}
+            onFilterChange={handleFilterChange}
+          />
+        );
       case 'guidelines':
-        return <GuidelinesTab />;
+        return (
+          <GuidelinesTab 
+            initialFilterDate={selectedWorkshopDate}
+            allWorkshopDates={allWorkshopDates}
+            onFilterChange={handleFilterChange}
+          />
+        );
       default:
         return <EventsTab />;
     }
@@ -42,7 +106,7 @@ function App() {
         </div>
       </header>
 
-      <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <Navigation activeTab={activeTab} onTabChange={handleTabChange} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {renderActiveTab()}

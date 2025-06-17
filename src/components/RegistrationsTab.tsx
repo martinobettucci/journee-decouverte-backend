@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Phone, Mail, Download, CheckCircle, XCircle, Trash2, Contact as FileContract, Heart, FileType } from 'lucide-react';
+import { FileText, Phone, Mail, Download, CheckCircle, XCircle, Trash2, Contact as FileContract, Heart, FileType, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -22,7 +22,13 @@ interface RegistrationWithContract extends TrainerRegistration {
   };
 }
 
-const RegistrationsTab: React.FC = () => {
+interface RegistrationsTabProps {
+  initialFilterDate: string | null;
+  allWorkshopDates: string[];
+  onFilterChange: (date: string | null) => void;
+}
+
+const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, allWorkshopDates, onFilterChange }) => {
   const [registrations, setRegistrations] = useState<RegistrationWithContract[]>([]);
   const [signedUrls, setSignedUrls] = useState<SignedUrls>({});
   const [loading, setLoading] = useState(true);
@@ -36,14 +42,30 @@ const RegistrationsTab: React.FC = () => {
     type: 'success' | 'error' | 'warning' | 'info';
   }>({ title: '', message: '', type: 'info' });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [filterDate, setFilterDate] = useState<string | null>(initialFilterDate);
+
+  useEffect(() => {
+    setFilterDate(initialFilterDate);
+  }, [initialFilterDate]);
 
   useEffect(() => {
     fetchRegistrations();
-  }, []);
+  }, [filterDate]);
 
   const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
     setNotification({ title, message, type });
     setNotificationModalOpen(true);
+  };
+
+  const handleFilterChange = (newDate: string) => {
+    const dateValue = newDate === '' ? null : newDate;
+    setFilterDate(dateValue);
+    onFilterChange(dateValue);
+  };
+
+  const clearFilter = () => {
+    setFilterDate(null);
+    onFilterChange(null);
   };
 
   const generateSignedUrl = async (filePath: string): Promise<string | null> => {
@@ -228,10 +250,17 @@ const RegistrationsTab: React.FC = () => {
 
   const fetchRegistrations = async () => {
     try {
-      const { data, error } = await supabase
+      // Build query with optional filter
+      let query = supabase
         .from('trainer_registrations')
         .select('*')
         .order('registered_at', { ascending: false });
+
+      if (filterDate) {
+        query = query.eq('workshop_date', filterDate);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -348,14 +377,57 @@ const RegistrationsTab: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Inscriptions des Formateurs</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Inscriptions des Formateurs</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Gestion des inscriptions des formateurs aux ateliers
+          </p>
+        </div>
+      </div>
+
+      {/* Filter Section */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="text-gray-600" size={20} />
+              <span className="text-sm font-medium text-gray-700">Filtrer par atelier:</span>
+            </div>
+            <select
+              value={filterDate || ''}
+              onChange={(e) => handleFilterChange(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Tous les ateliers</option>
+              {allWorkshopDates.map(date => (
+                <option key={date} value={date}>
+                  {format(new Date(date), 'dd MMMM yyyy', { locale: fr })}
+                </option>
+              ))}
+            </select>
+            {filterDate && (
+              <button
+                onClick={clearFilter}
+                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                <X size={16} />
+                <span>Effacer</span>
+              </button>
+            )}
+          </div>
+          {filterDate && (
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">{registrations.length}</span> inscription(s) pour l'atelier du {format(new Date(filterDate), 'dd MMMM yyyy', { locale: fr })}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
         <div className="grid gap-6 p-6">
           {registrations.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              Aucune inscription trouvée
+              {filterDate ? 'Aucune inscription trouvée pour cet atelier' : 'Aucune inscription trouvée'}
             </div>
           ) : (
             registrations.map((registration) => (

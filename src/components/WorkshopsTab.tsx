@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Key, Settings, FileSignature, FileText, CheckCircle, XCircle, AlertTriangle, Users, UserCheck, Mail, MailCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, Key, Settings, FileSignature, FileText, CheckCircle, XCircle, AlertTriangle, Users, UserCheck, Mail, MailCheck, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -8,7 +8,11 @@ import ClientContractForm from './forms/ClientContractForm';
 import ClientContractViewerModal from './common/ClientContractViewerModal';
 import type { WorkshopWithStatus, ClientContract, TrainerRegistration } from '../types/database';
 
-const WorkshopsTab: React.FC = () => {
+interface WorkshopsTabProps {
+  onNavigateWithFilter: (tab: string, workshopDate?: string) => void;
+}
+
+const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => {
   const [workshops, setWorkshops] = useState<WorkshopWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -332,6 +336,42 @@ const WorkshopsTab: React.FC = () => {
                             {trainerStatus.text}
                           </span>
                         </div>
+                      </div>
+
+                      {/* Quick navigation buttons */}
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        <button
+                          onClick={() => onNavigateWithFilter('trainers', workshop.date)}
+                          className="flex items-center space-x-2 px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                        >
+                          <Users size={14} />
+                          <span>Voir Formateurs</span>
+                          <ExternalLink size={12} />
+                        </button>
+                        <button
+                          onClick={() => onNavigateWithFilter('contracts', workshop.date)}
+                          className="flex items-center space-x-2 px-3 py-1 text-sm font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors"
+                        >
+                          <FileText size={14} />
+                          <span>Voir Contrats</span>
+                          <ExternalLink size={12} />
+                        </button>
+                        <button
+                          onClick={() => onNavigateWithFilter('registrations', workshop.date)}
+                          className="flex items-center space-x-2 px-3 py-1 text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
+                        >
+                          <UserCheck size={14} />
+                          <span>Voir Inscriptions</span>
+                          <ExternalLink size={12} />
+                        </button>
+                        <button
+                          onClick={() => onNavigateWithFilter('guidelines', workshop.date)}
+                          className="flex items-center space-x-2 px-3 py-1 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
+                        >
+                          <FileText size={14} />
+                          <span>Voir Directives</span>
+                          <ExternalLink size={12} />
+                        </button>
                       </div>
                       
                       <div className="flex items-center space-x-2 mb-4 p-3 bg-gray-50 rounded-md">

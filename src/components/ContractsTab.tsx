@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, FileText, User, Users, Building, X, Copy, Heart } from 'lucide-react';
+import { Plus, Edit2, Trash2, FileText, User, Users, Building, X, Copy, Heart, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -15,7 +15,13 @@ interface ContractWithAssignments extends ContractTemplate {
   assigned_trainers?: WorkshopTrainer[];
 }
 
-const ContractsTab: React.FC = () => {
+interface ContractsTabProps {
+  initialFilterDate: string | null;
+  allWorkshopDates: string[];
+  onFilterChange: (date: string | null) => void;
+}
+
+const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorkshopDates, onFilterChange }) => {
   const [contracts, setContracts] = useState<ContractWithAssignments[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -37,11 +43,16 @@ const ContractsTab: React.FC = () => {
     type: 'success' | 'error' | 'warning' | 'info';
   }>({ title: '', message: '', type: 'info' });
   const [filterType, setFilterType] = useState<'all' | 'trainer' | 'client'>('all');
+  const [filterDate, setFilterDate] = useState<string | null>(initialFilterDate);
   const [isUnassigning, setIsUnassigning] = useState(false);
 
   useEffect(() => {
+    setFilterDate(initialFilterDate);
+  }, [initialFilterDate]);
+
+  useEffect(() => {
     fetchContracts();
-  }, []);
+  }, [filterDate]);
 
   const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
     setNotification({ title, message, type });
@@ -50,11 +61,18 @@ const ContractsTab: React.FC = () => {
 
   const fetchContracts = async () => {
     try {
-      const { data: contractsData, error: contractsError } = await supabase
+      // Build query with optional filter
+      let query = supabase
         .from('contract_templates')
         .select('*')
         .order('type', { ascending: true })
         .order('workshop_date', { ascending: false });
+
+      if (filterDate) {
+        query = query.eq('workshop_date', filterDate);
+      }
+
+      const { data: contractsData, error: contractsError } = await query;
 
       if (contractsError) throw contractsError;
 
@@ -106,6 +124,17 @@ const ContractsTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (newDate: string) => {
+    const dateValue = newDate === '' ? null : newDate;
+    setFilterDate(dateValue);
+    onFilterChange(dateValue);
+  };
+
+  const clearFilter = () => {
+    setFilterDate(null);
+    onFilterChange(null);
   };
 
   const handleEdit = (contract: ContractTemplate) => {
@@ -258,6 +287,44 @@ const ContractsTab: React.FC = () => {
         </button>
       </div>
 
+      {/* Filter Section */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="text-gray-600" size={20} />
+              <span className="text-sm font-medium text-gray-700">Filtrer par atelier:</span>
+            </div>
+            <select
+              value={filterDate || ''}
+              onChange={(e) => handleFilterChange(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Tous les ateliers</option>
+              {allWorkshopDates.map(date => (
+                <option key={date} value={date}>
+                  {format(new Date(date), 'dd MMMM yyyy', { locale: fr })}
+                </option>
+              ))}
+            </select>
+            {filterDate && (
+              <button
+                onClick={clearFilter}
+                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                <X size={16} />
+                <span>Effacer</span>
+              </button>
+            )}
+          </div>
+          {filterDate && (
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">{filteredContracts.length}</span> contrat(s) pour l'atelier du {format(new Date(filterDate), 'dd MMMM yyyy', { locale: fr })}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Filter tabs */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
         <button
@@ -296,10 +363,15 @@ const ContractsTab: React.FC = () => {
         <div className="grid gap-6 p-6">
           {filteredContracts.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              {filterType === 'all' 
-                ? 'Aucun contrat trouvé'
-                : `Aucun contrat ${filterType === 'trainer' ? 'formateur' : 'client'} trouvé`
-              }
+              {filterDate ? (
+                filterType === 'all' 
+                  ? 'Aucun contrat trouvé pour cet atelier'
+                  : `Aucun contrat ${filterType === 'trainer' ? 'formateur' : 'client'} trouvé pour cet atelier`
+              ) : (
+                filterType === 'all' 
+                  ? 'Aucun contrat trouvé'
+                  : `Aucun contrat ${filterType === 'trainer' ? 'formateur' : 'client'} trouvé`
+              )}
             </div>
           ) : (
             filteredContracts.map((contract) => (

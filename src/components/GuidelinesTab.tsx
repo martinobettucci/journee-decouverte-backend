@@ -1,27 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, FileText } from 'lucide-react';
+import { Plus, Edit2, Trash2, FileText, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import GuidelinesForm from './forms/GuidelinesForm';
 import type { WorkshopGuidelines } from '../types/database';
 
-const GuidelinesTab: React.FC = () => {
+interface GuidelinesTabProps {
+  initialFilterDate: string | null;
+  allWorkshopDates: string[];
+  onFilterChange: (date: string | null) => void;
+}
+
+const GuidelinesTab: React.FC<GuidelinesTabProps> = ({ initialFilterDate, allWorkshopDates, onFilterChange }) => {
   const [guidelines, setGuidelines] = useState<WorkshopGuidelines[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingGuidelines, setEditingGuidelines] = useState<WorkshopGuidelines | null>(null);
+  const [filterDate, setFilterDate] = useState<string | null>(initialFilterDate);
+
+  useEffect(() => {
+    setFilterDate(initialFilterDate);
+  }, [initialFilterDate]);
 
   useEffect(() => {
     fetchGuidelines();
-  }, []);
+  }, [filterDate]);
+
+  const handleFilterChange = (newDate: string) => {
+    const dateValue = newDate === '' ? null : newDate;
+    setFilterDate(dateValue);
+    onFilterChange(dateValue);
+  };
+
+  const clearFilter = () => {
+    setFilterDate(null);
+    onFilterChange(null);
+  };
 
   const fetchGuidelines = async () => {
     try {
-      const { data, error } = await supabase
+      // Build query with optional filter
+      let query = supabase
         .from('workshop_guidelines')
         .select('*')
         .order('workshop_date', { ascending: false });
+
+      if (filterDate) {
+        query = query.eq('workshop_date', filterDate);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setGuidelines(data || []);
@@ -69,7 +98,12 @@ const GuidelinesTab: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Directives des Ateliers</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Directives des Ateliers</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Gestion des directives et instructions pour chaque atelier
+          </p>
+        </div>
         <button
           onClick={() => {
             setEditingGuidelines(null);
@@ -82,11 +116,49 @@ const GuidelinesTab: React.FC = () => {
         </button>
       </div>
 
+      {/* Filter Section */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="text-gray-600" size={20} />
+              <span className="text-sm font-medium text-gray-700">Filtrer par atelier:</span>
+            </div>
+            <select
+              value={filterDate || ''}
+              onChange={(e) => handleFilterChange(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Tous les ateliers</option>
+              {allWorkshopDates.map(date => (
+                <option key={date} value={date}>
+                  {format(new Date(date), 'dd MMMM yyyy', { locale: fr })}
+                </option>
+              ))}
+            </select>
+            {filterDate && (
+              <button
+                onClick={clearFilter}
+                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                <X size={16} />
+                <span>Effacer</span>
+              </button>
+            )}
+          </div>
+          {filterDate && (
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">{guidelines.length}</span> directive(s) pour l'atelier du {format(new Date(filterDate), 'dd MMMM yyyy', { locale: fr })}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
         <div className="grid gap-6 p-6">
           {guidelines.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
-              Aucune directive trouvée
+              {filterDate ? 'Aucune directive trouvée pour cet atelier' : 'Aucune directive trouvée'}
             </div>
           ) : (
             guidelines.map((guideline) => (
