@@ -23,6 +23,7 @@ export interface WorkshopTrainer {
   is_claimed: boolean;
   code_sent: boolean;
   created_at?: string;
+  trainer_registrations?: TrainerRegistration[];
 }
 
 export interface TrainerRegistration {
@@ -38,6 +39,7 @@ export interface TrainerRegistration {
   professional_compliance_accepted: boolean;
   event_guidelines_accepted: boolean;
   volunteer_attestation_accepted: boolean;
+  contract_accepted: boolean; // New field for contract acceptance
   invoice_file_url: string; // For paid contracts: invoice PDF, for volunteer contracts: motivation letter PDF or placeholder
   rib_file_url: string;
   registered_at?: string;
@@ -75,6 +77,7 @@ export interface ContractAssignment {
   trainer_id: string;
   contract_template_id: string;
   created_at?: string;
+  workshop_trainers?: WorkshopTrainer;
 }
 
 export interface ClientContract {

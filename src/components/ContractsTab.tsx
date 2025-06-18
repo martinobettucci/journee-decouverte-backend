@@ -36,6 +36,7 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
     assignmentId: string;
     trainerCode: string;
     contractName: string;
+    isContractAccepted: boolean;
   } | null>(null);
   const [notification, setNotification] = useState<{
     title: string;
@@ -87,7 +88,10 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
                 workshop_trainers!contract_assignments_trainer_id_fkey (
                   id,
                   trainer_code,
-                  workshop_date
+                  workshop_date,
+                  trainer_registrations!trainer_registrations_trainer_code_fkey (
+                    contract_accepted
+                  )
                 )
               `)
               .eq('contract_template_id', contract.id);
@@ -179,13 +183,25 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
     setShowAssignmentForm(true);
   };
 
-  const handleUnassignContract = (assignmentId: string, trainerCode: string, contractName: string) => {
-    setSelectedAssignment({ assignmentId, trainerCode, contractName });
+  const handleUnassignContract = (assignmentId: string, trainerCode: string, contractName: string, isContractAccepted: boolean) => {
+    setSelectedAssignment({ assignmentId, trainerCode, contractName, isContractAccepted });
     setShowUnassignModal(true);
   };
 
   const handleUnassignConfirm = async () => {
     if (!selectedAssignment) return;
+
+    // Check if contract has been accepted
+    if (selectedAssignment.isContractAccepted) {
+      setShowUnassignModal(false);
+      setSelectedAssignment(null);
+      showNotification(
+        'Modification impossible',
+        'Le formateur s\'est déjà inscrit et a accepté ce contrat. L\'affectation ne peut plus être modifiée.',
+        'warning'
+      );
+      return;
+    }
 
     try {
       setIsUnassigning(true);
@@ -237,6 +253,11 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
   const handleCloseCloneForm = () => {
     setShowCloneForm(false);
     setCloneSourceContract(null);
+  };
+
+  const isContractAccepted = (assignment: ContractAssignment): boolean => {
+    const trainerRegistrations = assignment.workshop_trainers?.trainer_registrations;
+    return trainerRegistrations ? trainerRegistrations.some(reg => reg.contract_accepted) : false;
   };
 
   const filteredContracts = contracts.filter(contract => {
@@ -404,26 +425,46 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
                       <div className="mb-3">
                         <h4 className="text-sm font-medium text-gray-900 mb-2">Formateurs assignés:</h4>
                         <div className="flex flex-wrap gap-2">
-                          {contract.assignments.map((assignment) => (
-                            <div
-                              key={assignment.id}
-                              className="inline-flex items-center bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium"
-                            >
-                              <User size={12} className="mr-1" />
-                              <span>{assignment.workshop_trainers?.trainer_code}</span>
-                              <button
-                                onClick={() => handleUnassignContract(
-                                  assignment.id,
-                                  assignment.workshop_trainers?.trainer_code || '',
-                                  contract.name
-                                )}
-                                className="ml-2 text-green-600 hover:text-red-600 transition-colors"
-                                title="Retirer cette affectation"
+                          {contract.assignments.map((assignment) => {
+                            const contractAccepted = isContractAccepted(assignment);
+                            return (
+                              <div
+                                key={assignment.id}
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  contractAccepted 
+                                    ? 'bg-green-100 text-green-800 border border-green-200' 
+                                    : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                }`}
                               >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          ))}
+                                <User size={12} className="mr-1" />
+                                <span>{assignment.workshop_trainers?.trainer_code}</span>
+                                {contractAccepted && (
+                                  <span className="ml-1 text-xs">✓</span>
+                                )}
+                                <button
+                                  onClick={() => handleUnassignContract(
+                                    assignment.id,
+                                    assignment.workshop_trainers?.trainer_code || '',
+                                    contract.name,
+                                    contractAccepted
+                                  )}
+                                  disabled={contractAccepted}
+                                  className={`ml-2 transition-colors ${
+                                    contractAccepted
+                                      ? 'text-gray-400 cursor-not-allowed'
+                                      : 'text-blue-600 hover:text-red-600'
+                                  }`}
+                                  title={
+                                    contractAccepted
+                                      ? 'Le formateur s\'est déjà inscrit et a accepté ce contrat.'
+                                      : 'Retirer cette affectation'
+                                  }
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
