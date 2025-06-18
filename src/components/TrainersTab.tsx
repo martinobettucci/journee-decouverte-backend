@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Users, CheckCircle, XCircle, Contact as FileContract, AlertCircle, RefreshCw, Mail, MailCheck, Filter, X, FileCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, CheckCircle, XCircle, Contact as FileContract, AlertCircle, RefreshCw, Mail, MailCheck, Filter, X, FileCheck, UserX } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase, testConnection } from '../lib/supabase';
@@ -187,6 +187,23 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut d\'envoi:', error);
       setError('Erreur lors de la mise à jour du statut d\'envoi du code');
+    }
+  };
+
+  const handleToggleAbandonedStatus = async (trainerId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('workshop_trainers')
+        .update({ is_abandoned: !currentStatus })
+        .eq('id', trainerId);
+
+      if (error) throw error;
+      
+      // Refresh the trainers list
+      fetchTrainers();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut abandonné:', error);
+      setError('Erreur lors de la mise à jour du statut abandonné');
     }
   };
 
@@ -399,6 +416,9 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
                   Code Envoyé
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Abandonné
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date de Création
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -409,13 +429,13 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
             <tbody className="bg-white divide-y divide-gray-200">
               {trainers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                     {filterDate ? 'Aucun formateur trouvé pour cet atelier' : 'Aucun formateur trouvé'}
                   </td>
                 </tr>
               ) : (
                 trainers.map((trainer) => (
-                  <tr key={trainer.id} className="hover:bg-gray-50">
+                  <tr key={trainer.id} className={`hover:bg-gray-50 ${trainer.is_abandoned ? 'bg-red-50' : ''}`}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <Users className="text-blue-600 mr-2" size={16} />
@@ -425,7 +445,11 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
+                      <code className={`px-2 py-1 rounded text-sm font-mono ${
+                        trainer.is_abandoned 
+                          ? 'bg-red-100 text-red-800 line-through' 
+                          : 'bg-gray-100'
+                      }`}>
                         {trainer.trainer_code}
                       </code>
                     </td>
@@ -472,6 +496,24 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
                         <span>{trainer.code_sent ? 'Envoyé' : 'Non envoyé'}</span>
                       </button>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleToggleAbandonedStatus(trainer.id, trainer.is_abandoned)}
+                        className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                          trainer.is_abandoned
+                            ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                        title={trainer.is_abandoned ? 'Marquer comme actif' : 'Marquer comme abandonné'}
+                      >
+                        {trainer.is_abandoned ? (
+                          <UserX size={16} />
+                        ) : (
+                          <Users size={16} />
+                        )}
+                        <span>{trainer.is_abandoned ? 'Abandonné' : 'Actif'}</span>
+                      </button>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {trainer.created_at && format(new Date(trainer.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
                     </td>
@@ -503,7 +545,7 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
 
       {/* Statistics Summary */}
       {trainers.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
           <div className="bg-white p-4 rounded-lg border border-gray-200">
             <div className="flex items-center space-x-2">
               <Users className="text-blue-600" size={20} />
@@ -551,6 +593,16 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
               {trainers.filter(t => t.code_sent).length}
             </p>
           </div>
+
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="flex items-center space-x-2">
+              <UserX className="text-red-600" size={20} />
+              <span className="text-sm font-medium text-gray-700">Abandonnés</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
+              {trainers.filter(t => t.is_abandoned).length}
+            </p>
+          </div>
           
           <div className="bg-white p-4 rounded-lg border border-gray-200">
             <div className="flex items-center space-x-2">
@@ -558,7 +610,7 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
               <span className="text-sm font-medium text-gray-700">En Attente</span>
             </div>
             <p className="text-2xl font-bold text-gray-900 mt-1">
-              {trainers.filter(t => !t.is_claimed).length}
+              {trainers.filter(t => !t.is_claimed && !t.is_abandoned).length}
             </p>
           </div>
         </div>

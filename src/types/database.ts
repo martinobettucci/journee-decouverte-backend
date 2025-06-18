@@ -22,6 +22,7 @@ export interface WorkshopTrainer {
   trainer_code: string;
   is_claimed: boolean;
   code_sent: boolean;
+  is_abandoned: boolean;
   created_at?: string;
   trainer_registrations?: TrainerRegistration[];
 }

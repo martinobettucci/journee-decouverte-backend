@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calendar, Key, User } from 'lucide-react';
+import { X, Save, Calendar, Key, User, UserX } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { WorkshopTrainer } from '../../types/database';
 
@@ -13,7 +13,8 @@ const TrainerForm: React.FC<TrainerFormProps> = ({ trainer, onClose, onSave }) =
   const [formData, setFormData] = useState({
     workshop_date: '',
     trainer_code: '',
-    is_claimed: false
+    is_claimed: false,
+    is_abandoned: false
   });
   const [workshopDates, setWorkshopDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,8 @@ const TrainerForm: React.FC<TrainerFormProps> = ({ trainer, onClose, onSave }) =
       setFormData({
         workshop_date: trainer.workshop_date,
         trainer_code: trainer.trainer_code,
-        is_claimed: trainer.is_claimed
+        is_claimed: trainer.is_claimed,
+        is_abandoned: trainer.is_abandoned
       });
     }
   }, [trainer]);
@@ -62,7 +64,8 @@ const TrainerForm: React.FC<TrainerFormProps> = ({ trainer, onClose, onSave }) =
       const trainerData = {
         workshop_date: formData.workshop_date,
         trainer_code: formData.trainer_code,
-        is_claimed: formData.is_claimed
+        is_claimed: formData.is_claimed,
+        is_abandoned: formData.is_abandoned
       };
 
       if (trainer) {
@@ -158,7 +161,7 @@ const TrainerForm: React.FC<TrainerFormProps> = ({ trainer, onClose, onSave }) =
             </div>
           </div>
 
-          <div>
+          <div className="space-y-3">
             <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
@@ -171,6 +174,22 @@ const TrainerForm: React.FC<TrainerFormProps> = ({ trainer, onClose, onSave }) =
                 <span className="text-sm text-gray-700">Code déjà utilisé</span>
               </div>
             </label>
+
+            <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.is_abandoned}
+                onChange={(e) => setFormData(prev => ({ ...prev, is_abandoned: e.target.checked }))}
+                className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+              />
+              <div className="flex items-center space-x-2">
+                <UserX size={16} className="text-red-600" />
+                <span className="text-sm text-gray-700">Formateur abandonné</span>
+              </div>
+            </label>
+            <p className="text-xs text-gray-500 ml-7">
+              Marquer comme abandonné si le formateur ne participe plus à l'atelier
+            </p>
           </div>
 
           <div className="flex justify-end space-x-3 pt-4 border-t">
