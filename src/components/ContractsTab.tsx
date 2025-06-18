@@ -257,7 +257,14 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
 
   const isContractAccepted = (assignment: ContractAssignment): boolean => {
     const trainerRegistrations = assignment.workshop_trainers?.trainer_registrations;
-    return trainerRegistrations ? trainerRegistrations.some(reg => reg.contract_accepted) : false;
+    if (!trainerRegistrations) return false;
+    
+    // Ensure trainerRegistrations is an array
+    const registrationsArray = Array.isArray(trainerRegistrations) 
+      ? trainerRegistrations 
+      : [trainerRegistrations];
+      
+    return registrationsArray.some(reg => reg.contract_accepted);
   };
 
   const filteredContracts = contracts.filter(contract => {
