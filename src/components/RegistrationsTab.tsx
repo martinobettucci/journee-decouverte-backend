@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Phone, Mail, Download, CheckCircle, XCircle, Trash2, Contact as FileContract, Heart, FileType, Filter, X } from 'lucide-react';
+import { FileText, Phone, Mail, Download, CheckCircle, XCircle, Trash2, Contact as FileContract, Heart, FileType, Filter, X, FileCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -478,6 +478,25 @@ const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, 
                         <span className="font-medium">{registration.contract_info.name}</span>
                       </div>
                     )}
+                    
+                    {/* Contract acceptance status */}
+                    <div className="flex items-center space-x-2 mb-4">
+                      {registration.contract_accepted ? (
+                        <>
+                          <FileCheck className="text-green-500" size={16} />
+                          <span className="text-sm text-green-800 bg-green-100 px-3 py-1 rounded-full font-medium">
+                            Contrat accepté
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="text-orange-500" size={16} />
+                          <span className="text-sm text-orange-800 bg-orange-100 px-3 py-1 rounded-full font-medium">
+                            Contrat en attente
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="flex space-x-2 ml-4">
                     <button

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Users, CheckCircle, XCircle, Contact as FileContract, AlertCircle, RefreshCw, Mail, MailCheck, Filter, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, CheckCircle, XCircle, Contact as FileContract, AlertCircle, RefreshCw, Mail, MailCheck, Filter, X, FileCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase, testConnection } from '../lib/supabase';
@@ -12,6 +12,7 @@ interface TrainerWithContract extends WorkshopTrainer {
     name: string;
     type: 'trainer' | 'client';
   };
+  contract_accepted?: boolean;
 }
 
 interface TrainersTabProps {
@@ -51,7 +52,12 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
       // Build query with optional filter
       let query = supabase
         .from('workshop_trainers')
-        .select('*')
+        .select(`
+          *,
+          trainer_registrations!trainer_registrations_trainer_code_fkey (
+            contract_accepted
+          )
+        `)
         .order('workshop_date', { ascending: false });
 
       if (filterDate) {
@@ -96,9 +102,16 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
               type: assignmentData[0].contract_templates.type
             } : undefined;
 
+            // Check if contract has been accepted from trainer_registrations
+            const registrations = trainer.trainer_registrations || [];
+            const contractAccepted = Array.isArray(registrations) 
+              ? registrations.some(reg => reg.contract_accepted)
+              : registrations?.contract_accepted || false;
+
             return {
               ...trainer,
-              assigned_contract: assignedContract
+              assigned_contract: assignedContract,
+              contract_accepted: contractAccepted
             };
           } catch (contractError) {
             console.warn('Failed to fetch contract for trainer', trainer.trainer_code, ':', contractError);
@@ -211,6 +224,33 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeColor}`}>
         <FileContract size={12} className="mr-1" />
         {contract.name}
+      </span>
+    );
+  };
+
+  const getContractAcceptedStatus = (trainer: TrainerWithContract) => {
+    if (!trainer.assigned_contract) {
+      return (
+        <span className="flex items-center text-gray-400">
+          <XCircle size={16} className="mr-1" />
+          <span className="text-sm">N/A</span>
+        </span>
+      );
+    }
+
+    if (trainer.contract_accepted) {
+      return (
+        <span className="flex items-center text-green-600">
+          <FileCheck size={16} className="mr-1" />
+          <span className="text-sm bg-green-100 px-2 py-1 rounded-full">Accepté</span>
+        </span>
+      );
+    }
+
+    return (
+      <span className="flex items-center text-orange-600">
+        <XCircle size={16} className="mr-1" />
+        <span className="text-sm bg-orange-100 px-2 py-1 rounded-full">En attente</span>
       </span>
     );
   };
@@ -353,6 +393,9 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
                   Contrat Affecté
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Contrat Accepté
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Code Envoyé
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -366,7 +409,7 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
             <tbody className="bg-white divide-y divide-gray-200">
               {trainers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                     {filterDate ? 'Aucun formateur trouvé pour cet atelier' : 'Aucun formateur trouvé'}
                   </td>
                 </tr>
@@ -407,6 +450,9 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getContractBadge(trainer.assigned_contract)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getContractAcceptedStatus(trainer)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
@@ -457,7 +503,7 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
 
       {/* Statistics Summary */}
       {trainers.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div className="bg-white p-4 rounded-lg border border-gray-200">
             <div className="flex items-center space-x-2">
               <Users className="text-blue-600" size={20} />
@@ -483,6 +529,16 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
             </div>
             <p className="text-2xl font-bold text-gray-900 mt-1">
               {trainers.filter(t => t.assigned_contract).length}
+            </p>
+          </div>
+
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="flex items-center space-x-2">
+              <FileCheck className="text-green-600" size={20} />
+              <span className="text-sm font-medium text-gray-700">Contrats Acceptés</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 mt-1">
+              {trainers.filter(t => t.contract_accepted).length}
             </p>
           </div>
 
