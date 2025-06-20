@@ -18,6 +18,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
     { id: 'initiatives', label: 'Initiatives', icon: Lightbulb },
     { id: 'faqs', label: 'FAQs', icon: HelpCircle },
     { id: 'testimonials', label: 'Témoignages', icon: MessageSquare },
+    { id: 'press-articles', label: 'Presse', icon: Newspaper },
     { id: 'partners', label: 'Partenaires', icon: Handshake },
     { id: 'media-highlights', label: 'Médias', icon: Newspaper },
   ];

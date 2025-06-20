@@ -165,6 +165,17 @@ export interface MediaHighlight {
   created_at?: string;
 }
 
+export interface PressArticle {
+  id: string;
+  publication: string;
+  logo_url: string;
+  title: string;
+  url: string;
+  date: string;
+  featured: boolean;
+  created_at?: string;
+}
+
 export interface Partner {
   id: string;
   name: string;
