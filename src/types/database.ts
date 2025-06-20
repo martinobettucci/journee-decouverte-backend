@@ -124,3 +124,11 @@ export interface Testimonial {
   order: number;
   created_at?: string;
 }
+
+export interface Faq {
+  id: string;
+  question: string;
+  answer: string;
+  order: number;
+  created_at?: string;
+}
