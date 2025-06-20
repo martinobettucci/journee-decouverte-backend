@@ -8,6 +8,15 @@ export interface Event {
   created_at?: string;
 }
 
+export interface EventPhoto {
+  id: string;
+  event_id: string;
+  src: string;
+  alt: string;
+  order: number;
+  created_at?: string;
+}
+
 export interface WorkshopPassword {
   id: string;
   date: string;

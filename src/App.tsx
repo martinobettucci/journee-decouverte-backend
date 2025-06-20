@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from './components/Navigation';
 import EventsTab from './components/EventsTab';
+import EventPhotosTab from './components/EventPhotosTab';
 import WorkshopsTab from './components/WorkshopsTab';
 import TrainersTab from './components/TrainersTab';
 import ContractsTab from './components/ContractsTab';
@@ -51,9 +52,11 @@ function App() {
     switch (activeTab) {
       case 'events':
         return <EventsTab />;
+      case 'event-photos':
+        return <EventPhotosTab />;
       case 'workshops':
         return (
-          <WorkshopsTab 
+          <WorkshopsTab
             onNavigateWithFilter={handleNavigateWithFilter}
           />
         );
