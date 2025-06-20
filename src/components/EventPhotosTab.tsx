@@ -1,29 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, Image as ImageIcon, Filter, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import EventPhotoForm from './forms/EventPhotoForm';
 import type { EventPhoto, Event } from '../types/database';
 
 const bucket = 'event-photos';
 
-const EventPhotosTab: React.FC = () => {
+interface EventPhotosTabProps {
+  initialFilterEventId: string | null;
+  onFilterChange: (eventId: string | null) => void;
+}
+
+const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, onFilterChange }) => {
   const [photos, setPhotos] = useState<EventPhoto[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<EventPhoto | null>(null);
+  const [filterEventId, setFilterEventId] = useState<string | null>(initialFilterEventId);
 
   useEffect(() => {
-    fetchPhotos();
     fetchEvents();
   }, []);
 
+  useEffect(() => {
+    fetchPhotos();
+  }, [filterEventId]);
+
+  useEffect(() => {
+    setFilterEventId(initialFilterEventId);
+  }, [initialFilterEventId]);
+
   const fetchPhotos = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      let query = supabase
         .from('event_photos')
         .select('*')
         .order('order', { ascending: true });
+
+      if (filterEventId) {
+        query = query.eq('event_id', filterEventId);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setPhotos(data || []);
     } catch (error) {
@@ -53,6 +73,17 @@ const EventPhotosTab: React.FC = () => {
   const getPublicUrl = (path: string) => {
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;
+  };
+
+  const handleFilterChange = (newId: string) => {
+    const value = newId === '' ? null : newId;
+    setFilterEventId(value);
+    onFilterChange(value);
+  };
+
+  const clearFilter = () => {
+    setFilterEventId(null);
+    onFilterChange(null);
   };
 
   const handleEdit = (photo: EventPhoto) => {
@@ -99,6 +130,42 @@ const EventPhotosTab: React.FC = () => {
           <Plus size={20} />
           <span>Nouvelle Photo</span>
         </button>
+      </div>
+
+      {/* Filter Section */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="text-gray-600" size={20} />
+              <span className="text-sm font-medium text-gray-700">Filtrer par événement:</span>
+            </div>
+            <select
+              value={filterEventId || ''}
+              onChange={(e) => handleFilterChange(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Tous les événements</option>
+              {events.map(ev => (
+                <option key={ev.id} value={ev.id}>{ev.occasion}</option>
+              ))}
+            </select>
+            {filterEventId && (
+              <button
+                onClick={clearFilter}
+                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                <X size={16} />
+                <span>Effacer</span>
+              </button>
+            )}
+          </div>
+          {filterEventId && (
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">{photos.length}</span> photo(s) pour {getEventLabel(filterEventId)}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">

@@ -12,6 +12,7 @@ import { supabase } from './lib/supabase';
 function App() {
   const [activeTab, setActiveTab] = useState('events');
   const [selectedWorkshopDate, setSelectedWorkshopDate] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [allWorkshopDates, setAllWorkshopDates] = useState<string[]>([]);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ function App() {
     setActiveTab(tab);
     // Clear the filter when manually changing tabs
     setSelectedWorkshopDate(null);
+    setSelectedEventId(null);
   };
 
   const handleNavigateWithFilter = (tab: string, workshopDate?: string) => {
@@ -43,16 +45,30 @@ function App() {
     setSelectedWorkshopDate(workshopDate || null);
   };
 
+  const handleNavigateToPhotos = (eventId?: string) => {
+    setActiveTab('event-photos');
+    setSelectedEventId(eventId || null);
+  };
+
   const handleFilterChange = (date: string | null) => {
     setSelectedWorkshopDate(date);
+  };
+
+  const handleEventFilterChange = (eventId: string | null) => {
+    setSelectedEventId(eventId);
   };
 
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'events':
-        return <EventsTab />;
+        return <EventsTab onManagePhotos={handleNavigateToPhotos} />;
       case 'event-photos':
-        return <EventPhotosTab />;
+        return (
+          <EventPhotosTab
+            initialFilterEventId={selectedEventId}
+            onFilterChange={handleEventFilterChange}
+          />
+        );
       case 'workshops':
         return (
           <WorkshopsTab
