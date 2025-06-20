@@ -124,3 +124,23 @@ export interface Testimonial {
   order: number;
   created_at?: string;
 }
+
+export interface InitiativeSocialLink {
+  url: string;
+  type: string;
+  label: string;
+}
+
+export interface Initiative {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string;
+  logo_url: string;
+  website_url: string;
+  locations: string[];
+  start_date: string;
+  specializations: string[];
+  social_links: InitiativeSocialLink[];
+  created_at?: string;
+}
