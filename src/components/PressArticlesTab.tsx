@@ -82,62 +82,50 @@ const PressArticlesTab: React.FC = () => {
         </button>
       </div>
 
-      <div className="bg-white shadow-sm rounded-lg overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Publication</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Logo</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titre</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mis en avant</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {articles.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">Aucun article trouvé</td>
-              </tr>
-            ) : (
-              articles.map((a) => (
-                <tr key={a.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{a.publication}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {a.logo_url && (
-                      <img src={getPublicUrl(a.logo_url)} alt={a.publication} className="h-8 w-8 object-contain" />
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{a.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      {a.url}
-                    </a>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {format(new Date(a.date), 'dd/MM/yyyy', { locale: fr })}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {a.featured ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Oui</span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Non</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+        <div className="grid gap-6 p-6">
+          {articles.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">Aucun article trouvé</div>
+          ) : (
+            articles.map((a) => (
+              <div key={a.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      {a.logo_url && (
+                        <img src={getPublicUrl(a.logo_url)} alt={a.publication} className="h-8 w-8 object-contain" />
+                      )}
+                      <h3 className="text-lg font-semibold text-gray-900">{a.title}</h3>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {a.publication} - {format(new Date(a.date), 'dd/MM/yyyy', { locale: fr })}
+                    </p>
+                    <p className="mt-2 text-sm">
+                      <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {a.url}
+                      </a>
+                    </p>
+                    <div className="mt-2">
+                      {a.featured ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Mis en avant</span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Standard</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex space-x-2 ml-4">
                     <button onClick={() => handleEdit(a)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <Edit2 size={18} />
                     </button>
                     <button onClick={() => handleDelete(a)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={18} />
                     </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {showForm && (
