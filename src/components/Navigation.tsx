@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, UserCheck, FileText, Settings, Contact as FileContract, Image, MessageSquare, Lightbulb } from 'lucide-react';
+import { Calendar, Users, UserCheck, FileText, Settings, Contact as FileContract, Image, MessageSquare, HelpCircle, Lightbulb } from 'lucide-react';
 
 interface NavigationProps {
   activeTab: string;
@@ -16,6 +16,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
     { id: 'registrations', label: 'Inscriptions', icon: UserCheck },
     { id: 'guidelines', label: 'Directives', icon: FileText },
     { id: 'initiatives', label: 'Initiatives', icon: Lightbulb },
+    { id: 'faqs', label: 'FAQs', icon: HelpCircle },
     { id: 'testimonials', label: 'Témoignages', icon: MessageSquare },
   ];
 
