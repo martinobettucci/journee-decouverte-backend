@@ -105,3 +105,13 @@ export interface WorkshopWithStatus extends WorkshopPassword {
     all_claimed: boolean;
   };
 }
+
+export interface Testimonial {
+  id: string;
+  partner_name: string;
+  logo_url: string;
+  quote: string;
+  rating: number;
+  order: number;
+  created_at?: string;
+}
