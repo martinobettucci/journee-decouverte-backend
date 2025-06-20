@@ -255,6 +255,15 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
       );
     }
 
+    if (trainer.is_abandoned) {
+      return (
+        <span className="flex items-center text-red-600">
+          <UserX size={16} className="mr-1" />
+          <span className="text-sm bg-red-100 px-2 py-1 rounded-full">Abandonné</span>
+        </span>
+      );
+    }
+
     if (trainer.contract_accepted) {
       return (
         <span className="flex items-center text-green-600">
@@ -455,7 +464,14 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        {trainer.is_claimed ? (
+                        {trainer.is_abandoned ? (
+                          <>
+                            <UserX className="text-red-500 mr-1" size={16} />
+                            <span className="text-sm text-red-800 bg-red-100 px-2 py-1 rounded-full">
+                              Abandonné
+                            </span>
+                          </>
+                        ) : trainer.is_claimed ? (
                           <>
                             <CheckCircle className="text-green-500 mr-1" size={16} />
                             <span className="text-sm text-green-800 bg-green-100 px-2 py-1 rounded-full">
