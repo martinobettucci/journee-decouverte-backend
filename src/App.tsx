@@ -7,6 +7,7 @@ import TrainersTab from './components/TrainersTab';
 import ContractsTab from './components/ContractsTab';
 import RegistrationsTab from './components/RegistrationsTab';
 import GuidelinesTab from './components/GuidelinesTab';
+import TestimonialsTab from './components/TestimonialsTab';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -85,12 +86,14 @@ function App() {
         );
       case 'guidelines':
         return (
-          <GuidelinesTab 
+          <GuidelinesTab
             initialFilterDate={selectedWorkshopDate}
             allWorkshopDates={allWorkshopDates}
             onFilterChange={handleFilterChange}
           />
         );
+      case 'testimonials':
+        return <TestimonialsTab />;
       default:
         return <EventsTab />;
     }
