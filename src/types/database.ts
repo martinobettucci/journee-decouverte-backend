@@ -152,3 +152,15 @@ export interface Faq {
   order: number;
   created_at?: string;
 }
+
+export interface MediaHighlight {
+  id: string;
+  title: string;
+  media_name: string;
+  media_logo: string;
+  date: string;
+  url: string | null;
+  video_id: string | null;
+  image_url: string;
+  created_at?: string;
+}
