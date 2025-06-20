@@ -86,54 +86,48 @@ const PartnersTab: React.FC = () => {
         </button>
       </div>
 
-      <div className="bg-white shadow-sm rounded-lg overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Logo</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Site web</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Depuis</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {partners.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-4 text-center text-gray-500">Aucun partenaire trouvé</td>
-              </tr>
-            ) : (
-              partners.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {p.logo_url && (
-                      <img src={getPublicUrl(p.logo_url)} alt={p.name} className="h-8 w-8 object-contain" />
+      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+        <div className="grid gap-6 p-6">
+          {partners.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">Aucun partenaire trouvé</div>
+          ) : (
+            partners.map((p) => (
+              <div key={p.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      {p.logo_url && (
+                        <img src={getPublicUrl(p.logo_url)} alt={p.name} className="h-8 w-8 object-contain" />
+                      )}
+                      <h3 className="text-lg font-semibold text-gray-900">{p.name}</h3>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      <a href={p.website_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {p.website_url}
+                      </a>
+                    </p>
+                    {p.collaboration_date && (
+                      <p className="text-sm text-gray-600">
+                        Depuis le {format(new Date(p.collaboration_date), 'dd/MM/yyyy', { locale: fr })}
+                      </p>
                     )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <a href={p.website_url} target="_blank" rel="noopener" className="text-blue-600 hover:underline text-sm">
-                      {p.website_url}
-                    </a>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {p.collaboration_date ? format(new Date(p.collaboration_date), 'dd/MM/yyyy', { locale: fr }) : ''}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.collaboration_status || ''}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    {p.collaboration_status && (
+                      <p className="text-sm text-gray-600">Statut: {p.collaboration_status}</p>
+                    )}
+                  </div>
+                  <div className="flex space-x-2 ml-4">
                     <button onClick={() => handleEdit(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <Edit2 size={18} />
                     </button>
                     <button onClick={() => handleDelete(p)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={18} />
                     </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {showForm && (
