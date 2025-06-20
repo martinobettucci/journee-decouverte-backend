@@ -12,6 +12,7 @@ import InitiativesTab from './components/InitiativesTab';
 import FaqsTab from './components/FaqsTab';
 import MediaHighlightsTab from './components/MediaHighlightsTab';
 import PressArticlesTab from './components/PressArticlesTab';
+import PartnersTab from './components/PartnersTab';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -120,6 +121,8 @@ function App() {
         return <TestimonialsTab />;
       case 'press-articles':
         return <PressArticlesTab />;
+      case 'partners':
+        return <PartnersTab />;
       case 'media-highlights':
         return <MediaHighlightsTab />;
       default:

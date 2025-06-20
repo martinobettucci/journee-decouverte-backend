@@ -175,3 +175,16 @@ export interface PressArticle {
   featured: boolean;
   created_at?: string;
 }
+
+export interface Partner {
+  id: string;
+  name: string;
+  logo_url: string;
+  website_url: string;
+  created_at?: string;
+  collaboration_date: string | null;
+  specializations: string[] | null;
+  resources: { url: string; description: string }[] | null;
+  locations: string[] | null;
+  collaboration_status: string | null;
+}
