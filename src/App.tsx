@@ -8,6 +8,7 @@ import ContractsTab from './components/ContractsTab';
 import RegistrationsTab from './components/RegistrationsTab';
 import GuidelinesTab from './components/GuidelinesTab';
 import TestimonialsTab from './components/TestimonialsTab';
+import InitiativesTab from './components/InitiativesTab';
 import FaqsTab from './components/FaqsTab';
 import { supabase } from './lib/supabase';
 
@@ -109,6 +110,8 @@ function App() {
             onFilterChange={handleFilterChange}
           />
         );
+      case 'initiatives':
+        return <InitiativesTab />;
       case 'faqs':
         return <FaqsTab />;
       case 'testimonials':
