@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, MapPin, Clock } from 'lucide-react';
+import { Plus, Edit2, Trash2, MapPin, Clock, Image } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import EventForm from './forms/EventForm';
 import type { Event } from '../types/database';
 
-const EventsTab: React.FC = () => {
+interface EventsTabProps {
+  onManagePhotos: (eventId: string) => void;
+}
+
+const EventsTab: React.FC<EventsTabProps> = ({ onManagePhotos }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -127,6 +131,13 @@ const EventsTab: React.FC = () => {
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     >
                       <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => onManagePhotos(event.id)}
+                      className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      title="Modifier les photos"
+                    >
+                      <Image size={18} />
                     </button>
                     <button
                       onClick={() => handleDelete(event.id)}
