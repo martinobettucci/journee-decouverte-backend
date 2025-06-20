@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, UserCheck, FileText, Settings, Contact as FileContract, , Image, MessageSquare } from 'lucide-react';
+import { Calendar, Users, UserCheck, FileText, Settings, Contact as FileContract, Image, MessageSquare } from 'lucide-react';
 
 interface NavigationProps {
   activeTab: string;
