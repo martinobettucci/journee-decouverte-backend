@@ -29,7 +29,7 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
   const [showCloneForm, setShowCloneForm] = useState(false);
   const [showUnassignModal, setShowUnassignModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [editingContract, setEditingContract] = useState<ContractTemplate | null>(null);
+  const [editingContract, setEditingContract] = useState<ContractWithAssignments | null>(null);
   const [cloneSourceContract, setCloneSourceContract] = useState<ContractTemplate | null>(null);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<{
@@ -141,7 +141,15 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
     onFilterChange(null);
   };
 
-  const handleEdit = (contract: ContractTemplate) => {
+  const handleEdit = (contract: ContractWithAssignments) => {
+    if (isContractLocked(contract)) {
+      showNotification(
+        'Modification impossible',
+        'Au moins un formateur a déjà accepté ce contrat. Vous pouvez le cloner si besoin.',
+        'warning'
+      );
+      return;
+    }
     setEditingContract(contract);
     setShowForm(true);
   };
@@ -151,7 +159,16 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
     setShowCloneForm(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (contract: ContractWithAssignments) => {
+    if (isContractLocked(contract)) {
+      showNotification(
+        'Suppression impossible',
+        'Ce contrat a été accepté par un formateur et ne peut plus être supprimé.',
+        'warning'
+      );
+      return;
+    }
+    const id = contract.id;
     if (confirm('Êtes-vous sûr de vouloir supprimer ce contrat ? Les affectations seront également supprimées.')) {
       try {
         const { error } = await supabase
@@ -265,6 +282,11 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
       : [trainerRegistrations];
       
     return registrationsArray.some(reg => reg.contract_accepted);
+  };
+
+  const isContractLocked = (contract: ContractWithAssignments): boolean => {
+    if (!contract.assignments) return false;
+    return contract.assignments.some(a => isContractAccepted(a));
   };
 
   const filteredContracts = contracts.filter(contract => {
@@ -495,15 +517,33 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
                     </button>
                     <button
                       onClick={() => handleEdit(contract)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Modifier le contrat"
+                      disabled={isContractLocked(contract)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isContractLocked(contract)
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-blue-600 hover:bg-blue-50'
+                      }`}
+                      title={
+                        isContractLocked(contract)
+                          ? 'Impossible de modifier un contrat déjà accepté'
+                          : 'Modifier le contrat'
+                      }
                     >
                       <Edit2 size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(contract.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Supprimer le contrat"
+                      onClick={() => handleDelete(contract)}
+                      disabled={isContractLocked(contract)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isContractLocked(contract)
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-red-600 hover:bg-red-50'
+                      }`}
+                      title={
+                        isContractLocked(contract)
+                          ? 'Impossible de supprimer un contrat déjà accepté'
+                          : 'Supprimer le contrat'
+                      }
                     >
                       <Trash2 size={18} />
                     </button>
