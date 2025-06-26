@@ -118,7 +118,7 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
               all_claimed
             },
             unpaid_count: unpaidCount,
-            all_paid
+            all_paid: allPaid
           };
         })
       );
