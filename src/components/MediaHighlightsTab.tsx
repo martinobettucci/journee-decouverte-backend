@@ -7,6 +7,8 @@ import { resolveImageUrl } from '../lib/image';
 import MediaHighlightForm from './forms/MediaHighlightForm';
 import type { MediaHighlight } from '../types/database';
 
+const bucket = 'media-highlights';
+
 const MediaHighlightsTab: React.FC = () => {
   const [highlights, setHighlights] = useState<MediaHighlight[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,7 @@ const MediaHighlightsTab: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <img
-                        src={resolveImageUrl(h.media_logo, 'media-highlights', supabase)}
+                        src={resolveImageUrl(h.media_logo, bucket, supabase)}
                         alt={h.media_name}
                         className="h-8 w-8 object-contain"
                       />
@@ -96,7 +98,7 @@ const MediaHighlightsTab: React.FC = () => {
                     </p>
                     <div className="mt-2">
                       <img
-                        src={resolveImageUrl(h.image_url, 'media-highlights', supabase)}
+                        src={resolveImageUrl(h.image_url, bucket, supabase)}
                         alt={h.title}
                         className="h-32 w-full object-cover rounded"
                       />
