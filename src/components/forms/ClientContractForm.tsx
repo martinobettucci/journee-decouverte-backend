@@ -25,6 +25,7 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
   const [contractTemplates, setContractTemplates] = useState<ContractTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const isReadOnly = !!clientContract?.is_signed;
 
   useEffect(() => {
     fetchAvailableWorkshops();
@@ -170,7 +171,11 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
           <div className="flex items-center space-x-3">
             <FileSignature className="text-blue-600" size={24} />
             <h2 className="text-xl font-semibold text-gray-900">
-              {clientContract ? 'Modifier le contrat client' : 'Nouveau contrat client'}
+              {clientContract
+                ? isReadOnly
+                  ? 'Contrat client (lecture seule)'
+                  : 'Modifier le contrat client'
+                : 'Nouveau contrat client'}
             </h2>
           </div>
           <button
@@ -182,11 +187,16 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
+        {isReadOnly && (
+          <div className="bg-gray-50 border border-gray-200 text-gray-700 px-4 py-3 rounded-md">
+            Ce contrat a été signé par le client et ne peut plus être modifié.
+          </div>
+        )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -199,7 +209,7 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
                 value={formData.workshop_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, workshop_date: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={!!clientContract}
+                disabled={!!clientContract || isReadOnly}
               >
                 <option value="">Sélectionner un atelier</option>
                 {availableWorkshops.map(date => (
@@ -225,6 +235,7 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
                 value={formData.contract_template_id}
                 onChange={(e) => setFormData(prev => ({ ...prev, contract_template_id: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isReadOnly}
               >
                 <option value="">Sélectionner un modèle client</option>
                 {contractTemplates.map(template => (
@@ -254,6 +265,7 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
                 onChange={(e) => setFormData(prev => ({ ...prev, client_company_name: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Ex: Entreprise ABC"
+                disabled={isReadOnly}
               />
             </div>
 
@@ -269,6 +281,7 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
                 onChange={(e) => setFormData(prev => ({ ...prev, client_representative_name: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Ex: Jean Dupont"
+                disabled={isReadOnly}
               />
             </div>
           </div>
@@ -285,6 +298,7 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
               onChange={handleRegistrationChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
               placeholder="Ex: 12345678901234 (SIRET) ou ABC123 (NDA)"
+              disabled={isReadOnly}
             />
             <p className="text-xs text-gray-500 mt-1">
               Saisissez le numéro SIRET (14 chiffres) ou NDA. Le format sera automatiquement appliqué.
@@ -303,6 +317,7 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
               onChange={(e) => setFormData(prev => ({ ...prev, client_address: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               placeholder="Adresse complète de l'entreprise client"
+              disabled={isReadOnly}
             />
           </div>
 
@@ -318,6 +333,7 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
               onChange={(e) => setFormData(prev => ({ ...prev, client_email: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="contact@entreprise.com"
+              disabled={isReadOnly}
             />
           </div>
 
@@ -334,11 +350,13 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
                 onChange={(e) => setFormData(prev => ({ ...prev, signature_code: e.target.value }))}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
                 placeholder="Code unique pour signature"
+                disabled={isReadOnly}
               />
               <button
                 type="button"
                 onClick={generateSignatureCode}
                 className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                disabled={isReadOnly}
               >
                 Générer
               </button>
@@ -355,6 +373,7 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
                 checked={formData.is_signed}
                 onChange={(e) => setFormData(prev => ({ ...prev, is_signed: e.target.checked }))}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                disabled={isReadOnly}
               />
               <div className="flex items-center space-x-2">
                 <FileSignature size={16} className="text-gray-600" />
@@ -373,7 +392,7 @@ const ClientContractForm: React.FC<ClientContractFormProps> = ({ clientContract,
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || isReadOnly}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors flex items-center space-x-2 disabled:opacity-50"
             >
               <Save size={16} />
