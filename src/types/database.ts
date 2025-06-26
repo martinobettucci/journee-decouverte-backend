@@ -64,6 +64,7 @@ export interface TrainerRegistration {
   representative_name?: string;
   representative_function?: string;
   representative_email?: string;
+  is_paid?: boolean;
 }
 
 export interface WorkshopGuidelines {
@@ -102,6 +103,7 @@ export interface ClientContract {
   signature_code: string;
   is_signed: boolean;
   code_sent: boolean;
+  payment_received: boolean;
   signed_at?: string;
   created_at?: string;
 }
@@ -113,6 +115,8 @@ export interface WorkshopWithStatus extends WorkshopPassword {
     registered_trainers: number;
     all_claimed: boolean;
   };
+  unpaid_count?: number;
+  all_paid?: boolean;
 }
 
 export interface Testimonial {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Phone, Mail, Download, CheckCircle, XCircle, Trash2, Contact as FileContract, Heart, FileType, Filter, X, FileCheck } from 'lucide-react';
+import { FileText, Phone, Mail, Download, CheckCircle, XCircle, Trash2, Contact as FileContract, Heart, FileType, Filter, X, FileCheck, BadgeEuro } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -170,6 +170,38 @@ const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, 
   const handleGenerateContractClick = (registration: RegistrationWithContract) => {
     setSelectedRegistration(registration);
     setContractModalOpen(true);
+  };
+
+  const handleTogglePaid = async (registration: RegistrationWithContract) => {
+    try {
+      const { error } = await supabase
+        .from('trainer_registrations')
+        .update({ is_paid: !registration.is_paid })
+        .eq('id', registration.id);
+
+      if (error) throw error;
+
+      setRegistrations(prev =>
+        prev.map(r =>
+          r.id === registration.id ? { ...r, is_paid: !registration.is_paid } : r
+        )
+      );
+
+      showNotification(
+        registration.is_paid ? 'Paiement annulé' : 'Paiement enregistré',
+        registration.is_paid
+          ? "L'inscription est marquée comme non payée."
+          : "L'inscription est marquée comme payée.",
+        'success'
+      );
+    } catch (error) {
+      console.error('Erreur de mise à jour du paiement:', error);
+      showNotification(
+        'Erreur',
+        "Impossible de mettre à jour le statut de paiement.",
+        'error'
+      );
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -481,23 +513,40 @@ const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, 
                     
                     {/* Contract acceptance status */}
                     <div className="flex items-center space-x-2 mb-4">
-                      {registration.contract_accepted ? (
-                        <>
-                          <FileCheck className="text-green-500" size={16} />
-                          <span className="text-sm text-green-800 bg-green-100 px-3 py-1 rounded-full font-medium">
-                            Contrat accepté
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="text-orange-500" size={16} />
-                          <span className="text-sm text-orange-800 bg-orange-100 px-3 py-1 rounded-full font-medium">
-                            Contrat en attente
-                          </span>
-                        </>
-                      )}
-                    </div>
+                    {registration.contract_accepted ? (
+                      <>
+                        <FileCheck className="text-green-500" size={16} />
+                        <span className="text-sm text-green-800 bg-green-100 px-3 py-1 rounded-full font-medium">
+                          Contrat accepté
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="text-orange-500" size={16} />
+                        <span className="text-sm text-orange-800 bg-orange-100 px-3 py-1 rounded-full font-medium">
+                          Contrat en attente
+                        </span>
+                      </>
+                    )}
                   </div>
+                  <div className="flex items-center space-x-2 mb-4">
+                    {registration.is_paid ? (
+                      <>
+                        <BadgeEuro className="text-green-500" size={16} />
+                        <span className="text-sm text-green-800 bg-green-100 px-3 py-1 rounded-full font-medium">
+                          Payé
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <BadgeEuro className="text-gray-500" size={16} />
+                        <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-medium">
+                          En attente paiement
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
                   <div className="flex space-x-2 ml-4">
                     <button
                       onClick={() => handleGenerateContractClick(registration)}
@@ -505,6 +554,15 @@ const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, 
                       title="Générer le contrat"
                     >
                       <FileContract size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleTogglePaid(registration)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        registration.is_paid ? 'text-green-600 hover:bg-green-50' : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                      title={registration.is_paid ? 'Marquer comme non payé' : 'Marquer comme payé'}
+                    >
+                      <BadgeEuro size={18} />
                     </button>
                     <button
                       onClick={() => handleDeleteClick(registration)}
