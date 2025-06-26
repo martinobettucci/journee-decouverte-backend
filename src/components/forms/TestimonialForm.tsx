@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { resolveImageUrl } from '../../lib/image';
 import type { Testimonial } from '../../types/database';
 
 interface TestimonialFormProps {
@@ -32,8 +33,7 @@ const TestimonialForm: React.FC<TestimonialFormProps> = ({ testimonial, onClose,
         logo_url: testimonial.logo_url
       });
       if (testimonial.logo_url) {
-        const { data } = supabase.storage.from('testimonials').getPublicUrl(testimonial.logo_url);
-        setPreviewUrl(data.publicUrl);
+        setPreviewUrl(resolveImageUrl(testimonial.logo_url, 'testimonials', supabase));
       }
     }
   }, [testimonial]);

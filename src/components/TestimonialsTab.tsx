@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { resolveImageUrl } from '../lib/image';
 import TestimonialForm from './forms/TestimonialForm';
 import type { Testimonial } from '../types/database';
 
@@ -81,14 +82,14 @@ const TestimonialsTab: React.FC = () => {
             <div className="text-center py-12 text-gray-500">Aucun témoignage trouvé</div>
           ) : (
             testimonials.map((t) => {
-              const { data } = supabase.storage.from('testimonials').getPublicUrl(t.logo_url);
+              const logoUrl = resolveImageUrl(t.logo_url, 'testimonials', supabase);
               return (
                 <div
                   key={t.id}
                   className="border border-gray-200 rounded-lg p-6 flex justify-between items-start hover:shadow-md transition-shadow"
                 >
                   <div className="flex space-x-4">
-                    <img src={data.publicUrl} alt={t.partner_name} className="h-16 w-16 object-contain" />
+                    <img src={logoUrl} alt={t.partner_name} className="h-16 w-16 object-contain" />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{t.partner_name}</h3>
                       <p className="text-gray-700 mb-1">{t.quote}</p>

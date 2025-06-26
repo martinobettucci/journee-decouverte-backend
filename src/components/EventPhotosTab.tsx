@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Image as ImageIcon, Filter, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { resolveImageUrl } from '../lib/image';
 import EventPhotoForm from './forms/EventPhotoForm';
 import type { EventPhoto, Event } from '../types/database';
 
@@ -70,10 +71,6 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
     return event ? event.occasion : 'Événement inconnu';
   };
 
-  const getPublicUrl = (path: string) => {
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
-  };
 
   const handleFilterChange = (newId: string) => {
     const value = newId === '' ? null : newId;
@@ -175,7 +172,11 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
           ) : (
             photos.map(photo => (
               <div key={photo.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow flex items-center space-x-4">
-                <img src={getPublicUrl(photo.src)} alt={photo.alt} className="w-24 h-24 object-cover rounded" />
+                <img
+                  src={resolveImageUrl(photo.src, bucket, supabase)}
+                  alt={photo.alt}
+                  className="w-24 h-24 object-cover rounded"
+                />
                 <div className="flex-1">
                   <h3 className="text-lg font-medium text-gray-900">{getEventLabel(photo.event_id)}</h3>
                   <p className="text-sm text-gray-600">{photo.alt}</p>

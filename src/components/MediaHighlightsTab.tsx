@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
+import { resolveImageUrl } from '../lib/image';
 import MediaHighlightForm from './forms/MediaHighlightForm';
 import type { MediaHighlight } from '../types/database';
 
@@ -83,14 +84,22 @@ const MediaHighlightsTab: React.FC = () => {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <img src={h.media_logo} alt={h.media_name} className="h-8 w-8 object-contain" />
+                      <img
+                        src={resolveImageUrl(h.media_logo, 'media-highlights', supabase)}
+                        alt={h.media_name}
+                        className="h-8 w-8 object-contain"
+                      />
                       <h3 className="text-lg font-semibold text-gray-900">{h.title}</h3>
                     </div>
                     <p className="text-sm text-gray-600">
                       {h.media_name} - {format(new Date(h.date), 'dd/MM/yyyy', { locale: fr })}
                     </p>
                     <div className="mt-2">
-                      <img src={h.image_url} alt={h.title} className="h-32 w-full object-cover rounded" />
+                      <img
+                        src={resolveImageUrl(h.image_url, 'media-highlights', supabase)}
+                        alt={h.title}
+                        className="h-32 w-full object-cover rounded"
+                      />
                     </div>
                   </div>
                   <div className="flex space-x-2 ml-4">

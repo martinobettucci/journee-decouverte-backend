@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
+import { resolveImageUrl } from '../lib/image';
 import PressArticleForm from './forms/PressArticleForm';
 import type { PressArticle } from '../types/database';
 
@@ -56,10 +57,6 @@ const PressArticlesTab: React.FC = () => {
     setEditingArticle(null);
   };
 
-  const getPublicUrl = (path: string) => {
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
-  };
 
   if (loading) {
     return (
@@ -93,7 +90,11 @@ const PressArticlesTab: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       {a.logo_url && (
-                        <img src={getPublicUrl(a.logo_url)} alt={a.publication} className="h-8 w-8 object-contain" />
+                        <img
+                          src={resolveImageUrl(a.logo_url, bucket, supabase)}
+                          alt={a.publication}
+                          className="h-8 w-8 object-contain"
+                        />
                       )}
                       <h3 className="text-lg font-semibold text-gray-900">{a.title}</h3>
                     </div>

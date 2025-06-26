@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { resolveImageUrl } from '../../lib/image';
 import type { MediaHighlight } from '../../types/database';
 
 interface MediaHighlightFormProps {
@@ -39,8 +40,10 @@ const MediaHighlightForm: React.FC<MediaHighlightFormProps> = ({ highlight, onCl
         media_logo: highlight.media_logo,
         image_url: highlight.image_url
       });
-      if (highlight.media_logo) setLogoPreview(highlight.media_logo);
-      if (highlight.image_url) setImagePreview(highlight.image_url);
+      if (highlight.media_logo)
+        setLogoPreview(resolveImageUrl(highlight.media_logo, bucket, supabase));
+      if (highlight.image_url)
+        setImagePreview(resolveImageUrl(highlight.image_url, bucket, supabase));
     }
   }, [highlight]);
 

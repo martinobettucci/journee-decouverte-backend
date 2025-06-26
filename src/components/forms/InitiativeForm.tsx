@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { resolveImageUrl } from '../../lib/image';
 import type { Initiative, InitiativeSocialLink } from '../../types/database';
 
 interface InitiativeFormProps {
@@ -45,12 +46,10 @@ const InitiativeForm: React.FC<InitiativeFormProps> = ({ initiative, onClose, on
         logo_url: initiative.logo_url
       });
       if (initiative.image_url) {
-        const { data } = supabase.storage.from(bucket).getPublicUrl(initiative.image_url);
-        setImagePreview(data.publicUrl);
+        setImagePreview(resolveImageUrl(initiative.image_url, bucket, supabase));
       }
       if (initiative.logo_url) {
-        const { data } = supabase.storage.from(bucket).getPublicUrl(initiative.logo_url);
-        setLogoPreview(data.publicUrl);
+        setLogoPreview(resolveImageUrl(initiative.logo_url, bucket, supabase));
       }
     }
   }, [initiative]);
