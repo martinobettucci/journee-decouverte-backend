@@ -65,26 +65,26 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
             console.error('Error fetching registrations:', registrationsError);
           }
 
-          const trainers = trainersData || [];
-          const registrations = registrationsData || [];
+          // Exclude trainers who have abandoned the workshop
+          const allTrainers = trainersData || [];
+          const trainers = allTrainers.filter(t => !t.is_abandoned);
+
+          // Only keep registrations for trainers that are still active
+          const registrations = (registrationsData || []).filter(reg =>
+            trainers.some(t => t.trainer_code === reg.trainer_code)
+          );
 
           // Determine unpaid non-volunteer contracts
           let unpaidCount = 0;
-          for (const reg of registrationsData || []) {
+          for (const reg of registrations) {
             try {
-              const { data: trainerData } = await supabase
-                .from('workshop_trainers')
-                .select('id')
-                .eq('trainer_code', reg.trainer_code)
-                .eq('workshop_date', workshop.date)
-                .single();
-
-              if (!trainerData) continue;
+              const trainer = trainers.find(t => t.trainer_code === reg.trainer_code);
+              if (!trainer) continue;
 
               const { data: assignmentData } = await supabase
                 .from('contract_assignments')
                 .select(`contract_templates!contract_assignments_contract_template_id_fkey(is_volunteer)`)
-                .eq('trainer_id', trainerData.id)
+                .eq('trainer_id', trainer.id)
                 .single();
 
               const isVolunteer = assignmentData?.contract_templates?.is_volunteer;
