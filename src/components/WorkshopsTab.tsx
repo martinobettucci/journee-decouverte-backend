@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Key, Settings, FileSignature, FileText, CheckCircle, XCircle, AlertTriangle, Users, UserCheck, Mail, MailCheck, ExternalLink } from 'lucide-react';
+import { Plus, Edit2, Trash2, Key, Settings, FileSignature, FileText, CheckCircle, XCircle, AlertTriangle, Users, UserCheck, Mail, MailCheck, ExternalLink, BadgeEuro } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -68,15 +68,46 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
           const trainers = trainersData || [];
           const registrations = registrationsData || [];
 
+          // Determine unpaid non-volunteer contracts
+          let unpaidCount = 0;
+          for (const reg of registrationsData || []) {
+            try {
+              const { data: trainerData } = await supabase
+                .from('workshop_trainers')
+                .select('id')
+                .eq('trainer_code', reg.trainer_code)
+                .eq('workshop_date', workshop.date)
+                .single();
+
+              if (!trainerData) continue;
+
+              const { data: assignmentData } = await supabase
+                .from('contract_assignments')
+                .select(`contract_templates!contract_assignments_contract_template_id_fkey(is_volunteer)`)
+                .eq('trainer_id', trainerData.id)
+                .single();
+
+              const isVolunteer = assignmentData?.contract_templates?.is_volunteer;
+              if (!isVolunteer && !reg.is_paid) {
+                unpaidCount++;
+              }
+            } catch (err) {
+              console.warn('Failed to compute payment status for registration', reg.id);
+            }
+          }
+
           // Calculate trainer status
           const total_trainers = trainers.length;
           const registered_trainers = registrations.length;
           const all_claimed = trainers.every(trainer => trainer.is_claimed);
 
           // Find client contract for this workshop
-          const clientContract = clientContractsData?.find(contract => 
+          const clientContract = clientContractsData?.find(contract =>
             contract.workshop_date === workshop.date
           );
+
+          const allPaid =
+            unpaidCount === 0 && (clientContract ? clientContract.payment_received : true);
 
           return {
             ...workshop,
@@ -85,7 +116,9 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
               total_trainers,
               registered_trainers,
               all_claimed
-            }
+            },
+            unpaid_count: unpaidCount,
+            all_paid
           };
         })
       );
@@ -207,6 +240,22 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
     }
   };
 
+  const handleToggleClientPaymentReceived = async (clientContract: ClientContract) => {
+    try {
+      const { error } = await supabase
+        .from('client_contracts')
+        .update({ payment_received: !clientContract.payment_received })
+        .eq('id', clientContract.id);
+
+      if (error) throw error;
+
+      fetchWorkshops();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du paiement client:', error);
+      alert("Erreur lors de la mise à jour du statut d'encaissement client");
+    }
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingWorkshop(null);
@@ -273,6 +322,30 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
     };
   };
 
+  const getPaymentStatus = (workshop: WorkshopWithStatus) => {
+    if (workshop.unpaid_count && workshop.unpaid_count > 0) {
+      return {
+        icon: <BadgeEuro className="text-red-500" size={20} />,
+        text: `${workshop.unpaid_count} paiement(s) en attente`,
+        color: 'text-red-600'
+      };
+    }
+
+    if (workshop.client_contract && !workshop.client_contract.payment_received) {
+      return {
+        icon: <BadgeEuro className="text-orange-500" size={20} />,
+        text: 'Attente encaissement',
+        color: 'text-orange-600'
+      };
+    }
+
+    return {
+      icon: <BadgeEuro className="text-green-500" size={20} />,
+      text: 'Tous payés',
+      color: 'text-green-600'
+    };
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -334,6 +407,12 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
                           {trainerStatus.icon}
                           <span className={`text-sm font-medium ${trainerStatus.color}`}>
                             {trainerStatus.text}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {getPaymentStatus(workshop).icon}
+                          <span className={`text-sm font-medium ${getPaymentStatus(workshop).color}`}>
+                            {getPaymentStatus(workshop).text}
                           </span>
                         </div>
                       </div>
@@ -431,6 +510,17 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
                             >
                               {workshop.client_contract.code_sent ? <MailCheck size={18} /> : <Mail size={18} />}
                             </button>
+                            <button
+                              onClick={() => handleToggleClientPaymentReceived(workshop.client_contract!)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                workshop.client_contract.payment_received
+                                  ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                                  : 'text-gray-600 bg-gray-50 hover:bg-gray-100'
+                              }`}
+                              title={workshop.client_contract.payment_received ? 'Marquer encaissement non reçu' : 'Marquer encaissement reçu'}
+                            >
+                              <BadgeEuro size={18} />
+                            </button>
                           </>
                         )}
                       </div>
@@ -467,6 +557,15 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
                         }`}>
                           {workshop.client_contract.code_sent ? <MailCheck size={16} /> : <Mail size={16} />}
                           <span>{workshop.client_contract.code_sent ? 'Code envoyé' : 'Code non envoyé'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="text-sm text-gray-600">Paiement client:</div>
+                        <div className={`flex items-center space-x-2 text-sm ${
+                          workshop.client_contract.payment_received ? 'text-green-600' : 'text-gray-500'
+                        }`}>
+                          <BadgeEuro size={16} />
+                          <span>{workshop.client_contract.payment_received ? 'Reçu' : 'En attente'}</span>
                         </div>
                       </div>
                     </div>
