@@ -58,7 +58,7 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
           // Get registrations for this workshop
           const { data: registrationsData, error: registrationsError } = await supabase
             .from('trainer_registrations')
-            .select('trainer_code')
+            .select('id, trainer_code, is_paid')
             .eq('workshop_date', workshop.date);
 
           if (registrationsError) {

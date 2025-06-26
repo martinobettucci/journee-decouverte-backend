@@ -42,6 +42,8 @@ const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, 
     type: 'success' | 'error' | 'warning' | 'info';
   }>({ title: '', message: '', type: 'info' });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmPaymentModalOpen, setConfirmPaymentModalOpen] = useState(false);
+  const [paymentTarget, setPaymentTarget] = useState<RegistrationWithContract | null>(null);
   const [filterDate, setFilterDate] = useState<string | null>(initialFilterDate);
 
   useEffect(() => {
@@ -172,6 +174,23 @@ const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, 
     setContractModalOpen(true);
   };
 
+  const handleTogglePaidClick = (registration: RegistrationWithContract) => {
+    setPaymentTarget(registration);
+    setConfirmPaymentModalOpen(true);
+  };
+
+  const handleConfirmTogglePaid = async () => {
+    if (!paymentTarget) return;
+    await handleTogglePaid(paymentTarget);
+    setConfirmPaymentModalOpen(false);
+    setPaymentTarget(null);
+  };
+
+  const handleCancelTogglePaid = () => {
+    setConfirmPaymentModalOpen(false);
+    setPaymentTarget(null);
+  };
+
   const handleTogglePaid = async (registration: RegistrationWithContract) => {
     try {
       const { error } = await supabase
@@ -188,10 +207,20 @@ const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, 
       );
 
       showNotification(
-        registration.is_paid ? 'Paiement annulé' : 'Paiement enregistré',
         registration.is_paid
-          ? "L'inscription est marquée comme non payée."
-          : "L'inscription est marquée comme payée.",
+          ? registration.contract_info?.is_volunteer
+            ? 'Remboursement annulé'
+            : 'Paiement annulé'
+          : registration.contract_info?.is_volunteer
+            ? 'Remboursement enregistré'
+            : 'Paiement enregistré',
+        registration.is_paid
+          ? registration.contract_info?.is_volunteer
+            ? "L'inscription est marquée comme non remboursée."
+            : "L'inscription est marquée comme non payée."
+          : registration.contract_info?.is_volunteer
+            ? "L'inscription est marquée comme remboursée."
+            : "L'inscription est marquée comme payée.",
         'success'
       );
     } catch (error) {
@@ -534,14 +563,14 @@ const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, 
                       <>
                         <BadgeEuro className="text-green-500" size={16} />
                         <span className="text-sm text-green-800 bg-green-100 px-3 py-1 rounded-full font-medium">
-                          Payé
+                          {registration.contract_info?.is_volunteer ? 'Remboursé' : 'Payé'}
                         </span>
                       </>
                     ) : (
                       <>
                         <BadgeEuro className="text-gray-500" size={16} />
                         <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-medium">
-                          En attente paiement
+                          {registration.contract_info?.is_volunteer ? 'En attente remboursement' : 'En attente paiement'}
                         </span>
                       </>
                     )}
@@ -556,11 +585,17 @@ const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, 
                       <FileContract size={18} />
                     </button>
                     <button
-                      onClick={() => handleTogglePaid(registration)}
+                      onClick={() => handleTogglePaidClick(registration)}
                       className={`p-2 rounded-lg transition-colors ${
                         registration.is_paid ? 'text-green-600 hover:bg-green-50' : 'text-gray-600 hover:bg-gray-50'
                       }`}
-                      title={registration.is_paid ? 'Marquer comme non payé' : 'Marquer comme payé'}
+                      title={registration.is_paid
+                        ? registration.contract_info?.is_volunteer
+                          ? 'Marquer comme non remboursé'
+                          : 'Marquer comme non payé'
+                        : registration.contract_info?.is_volunteer
+                          ? 'Marquer comme remboursé'
+                          : 'Marquer comme payé'}
                     >
                       <BadgeEuro size={18} />
                     </button>
@@ -714,6 +749,33 @@ const RegistrationsTab: React.FC<RegistrationsTabProps> = ({ initialFilterDate, 
         cancelText="Annuler"
         type="danger"
         loading={isDeleting}
+      />
+
+      <ConfirmationModal
+        isOpen={confirmPaymentModalOpen}
+        onClose={handleCancelTogglePaid}
+        onConfirm={handleConfirmTogglePaid}
+        title={paymentTarget?.is_paid
+          ? paymentTarget.contract_info?.is_volunteer
+            ? 'Annuler le remboursement'
+            : 'Annuler le paiement'
+          : paymentTarget?.contract_info?.is_volunteer
+            ? 'Confirmer le remboursement'
+            : 'Confirmer le paiement'}
+        message={paymentTarget
+          ? paymentTarget.is_paid
+            ? `Voulez-vous vraiment marquer cette inscription comme ${paymentTarget.contract_info?.is_volunteer ? 'non remboursée' : 'non payée'} ?`
+            : `Voulez-vous vraiment marquer cette inscription comme ${paymentTarget.contract_info?.is_volunteer ? 'remboursée' : 'payée'} ?`
+          : ''}
+        confirmText={paymentTarget?.is_paid
+          ? paymentTarget.contract_info?.is_volunteer
+            ? 'Annuler remboursement'
+            : 'Annuler paiement'
+          : paymentTarget?.contract_info?.is_volunteer
+            ? 'Marquer remboursé'
+            : 'Marquer payé'}
+        cancelText="Annuler"
+        type="info"
       />
 
       <NotificationModal
