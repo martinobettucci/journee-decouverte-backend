@@ -4,7 +4,7 @@ export const resolveImageUrl = (path: string, bucket: string, supabase: any): st
     return path;
   }
   if (path.startsWith('/images/') || path.startsWith('images/')) {
-    return path.startsWith('/') ? path : `/${path}`;
+    return path.startsWith('/') ? path : `https://p2enjoy.studio/${path}`;
   }
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
