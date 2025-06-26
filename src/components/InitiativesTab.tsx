@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { resolveImageUrl } from '../lib/image';
 import InitiativeForm from './forms/InitiativeForm';
 import type { Initiative } from '../types/database';
 
@@ -58,10 +59,6 @@ const InitiativesTab: React.FC = () => {
     setEditingInitiative(null);
   };
 
-  const getPublicUrl = (path: string) => {
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
-  };
 
   if (loading) {
     return (
@@ -99,7 +96,11 @@ const InitiativesTab: React.FC = () => {
               >
                 <div className="flex space-x-4">
                   {initiative.logo_url && (
-                    <img src={getPublicUrl(initiative.logo_url)} alt={initiative.title} className="h-16 w-16 object-contain" />
+                    <img
+                      src={resolveImageUrl(initiative.logo_url, bucket, supabase)}
+                      alt={initiative.title}
+                      className="h-16 w-16 object-contain"
+                    />
                   )}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">{initiative.title}</h3>

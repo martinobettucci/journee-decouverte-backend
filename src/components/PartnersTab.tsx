@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
+import { resolveImageUrl } from '../lib/image';
 import PartnerForm from './forms/PartnerForm';
 import type { Partner } from '../types/database';
 
@@ -57,10 +58,6 @@ const PartnersTab: React.FC = () => {
     setEditingPartner(null);
   };
 
-  const getPublicUrl = (path: string) => {
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
-  };
 
   if (loading) {
     return (
@@ -97,7 +94,11 @@ const PartnersTab: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       {p.logo_url && (
-                        <img src={getPublicUrl(p.logo_url)} alt={p.name} className="h-8 w-8 object-contain" />
+                        <img
+                          src={resolveImageUrl(p.logo_url, bucket, supabase)}
+                          alt={p.name}
+                          className="h-8 w-8 object-contain"
+                        />
                       )}
                       <h3 className="text-lg font-semibold text-gray-900">{p.name}</h3>
                     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { resolveImageUrl } from '../../lib/image';
 import type { PressArticle } from '../../types/database';
 
 interface PressArticleFormProps {
@@ -36,8 +37,7 @@ const PressArticleForm: React.FC<PressArticleFormProps> = ({ article, onClose, o
         featured: article.featured,
       });
       if (article.logo_url) {
-        const { data } = supabase.storage.from(bucket).getPublicUrl(article.logo_url);
-        setLogoPreview(data.publicUrl);
+        setLogoPreview(resolveImageUrl(article.logo_url, bucket, supabase));
       }
     }
   }, [article]);

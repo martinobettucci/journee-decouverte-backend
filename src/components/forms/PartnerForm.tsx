@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Plus, Trash2, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { resolveImageUrl } from '../../lib/image';
 import type { Partner } from '../../types/database';
 
 interface PartnerFormProps {
@@ -43,8 +44,7 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
         collaboration_status: partner.collaboration_status || ''
       });
       if (partner.logo_url) {
-        const { data } = supabase.storage.from(bucket).getPublicUrl(partner.logo_url);
-        setLogoPreview(data.publicUrl);
+        setLogoPreview(resolveImageUrl(partner.logo_url, bucket, supabase));
       }
     }
   }, [partner]);
