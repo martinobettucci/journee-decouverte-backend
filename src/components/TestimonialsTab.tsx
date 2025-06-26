@@ -5,6 +5,8 @@ import { resolveImageUrl } from '../lib/image';
 import TestimonialForm from './forms/TestimonialForm';
 import type { Testimonial } from '../types/database';
 
+const bucket = 'testimonials';
+
 const TestimonialsTab: React.FC = () => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ const TestimonialsTab: React.FC = () => {
             <div className="text-center py-12 text-gray-500">Aucun témoignage trouvé</div>
           ) : (
             testimonials.map((t) => {
-              const logoUrl = resolveImageUrl(t.logo_url, 'testimonials', supabase);
+              const logoUrl = resolveImageUrl(t.logo_url, bucket, supabase);
               return (
                 <div
                   key={t.id}
