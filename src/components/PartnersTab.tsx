@@ -1,43 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import { resolveImageUrl } from '../lib/image';
-import { initializeStorageBuckets, STORAGE_BUCKETS } from '../lib/storage';
 import PartnerForm from './forms/PartnerForm';
 import type { Partner } from '../types/database';
 
-const bucket = STORAGE_BUCKETS.partners;
+const bucket = 'partners';
 
 const PartnersTab: React.FC = () => {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
-  const [storageInitialized, setStorageInitialized] = useState(false);
-  const [storageError, setStorageError] = useState<string | null>(null);
 
   useEffect(() => {
-    initializeStorage();
     fetchPartners();
   }, []);
-
-  const initializeStorage = async () => {
-    try {
-      const results = await initializeStorageBuckets();
-      const partnersResult = results.find(r => r.bucket === bucket);
-      
-      if (partnersResult?.status === 'failed') {
-        setStorageError('Unable to initialize storage bucket. Images may not work properly.');
-      } else {
-        setStorageInitialized(true);
-      }
-    } catch (error) {
-      console.error('Failed to initialize storage:', error);
-      setStorageError('Storage initialization failed. Images may not work properly.');
-    }
-  };
 
   const fetchPartners = async () => {
     try {
@@ -62,16 +42,9 @@ const PartnersTab: React.FC = () => {
   const handleDelete = async (p: Partner) => {
     if (!confirm('Supprimer ce partenaire ?')) return;
     try {
-      // Only try to delete from storage if the bucket exists and the file exists
-      if (p.logo_url && storageInitialized && !p.logo_url.startsWith('http')) {
-        try {
-          await supabase.storage.from(bucket).remove([p.logo_url]);
-        } catch (storageError) {
-          console.warn('Failed to delete logo from storage:', storageError);
-          // Continue with database deletion even if storage deletion fails
-        }
+      if (p.logo_url) {
+        await supabase.storage.from(bucket).remove([p.logo_url]);
       }
-      
       const { error } = await supabase.from('partners').delete().eq('id', p.id);
       if (error) throw error;
       fetchPartners();
@@ -85,6 +58,7 @@ const PartnersTab: React.FC = () => {
     setEditingPartner(null);
   };
 
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -95,21 +69,6 @@ const PartnersTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {storageError && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-          <div className="flex">
-            <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5" />
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">Storage Warning</h3>
-              <p className="text-sm text-yellow-700 mt-1">{storageError}</p>
-              <p className="text-xs text-yellow-600 mt-1">
-                Please ensure the 'partners' storage bucket exists in your Supabase project.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Gestion des Partenaires</h2>
         <button
@@ -135,27 +94,16 @@ const PartnersTab: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       {p.logo_url && (
-                        <div className="h-8 w-8 flex-shrink-0">
-                          <img
-                            src={resolveImageUrl(p.logo_url, bucket, supabase)}
-                            alt={p.name}
-                            className="h-8 w-8 object-contain"
-                            onError={(e) => {
-                              // Hide broken images
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        </div>
+                        <img
+                          src={resolveImageUrl(p.logo_url, bucket, supabase)}
+                          alt={p.name}
+                          className="h-8 w-8 object-contain"
+                        />
                       )}
                       <h3 className="text-lg font-semibold text-gray-900">{p.name}</h3>
                     </div>
                     <p className="text-sm text-gray-600">
-                      <a 
-                        href={p.website_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-blue-600 hover:underline"
-                      >
+                      <a href={p.website_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                         {p.website_url}
                       </a>
                     </p>
@@ -167,39 +115,12 @@ const PartnersTab: React.FC = () => {
                     {p.collaboration_status && (
                       <p className="text-sm text-gray-600">Statut: {p.collaboration_status}</p>
                     )}
-                    {p.specializations && p.specializations.length > 0 && (
-                      <div className="mt-2">
-                        <div className="flex flex-wrap gap-1">
-                          {p.specializations.map((spec, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
-                            >
-                              {spec}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {p.locations && p.locations.length > 0 && (
-                      <div className="mt-1">
-                        <p className="text-xs text-gray-500">
-                          Lieux: {p.locations.join(', ')}
-                        </p>
-                      </div>
-                    )}
                   </div>
                   <div className="flex space-x-2 ml-4">
-                    <button 
-                      onClick={() => handleEdit(p)} 
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    >
+                    <button onClick={() => handleEdit(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <Edit2 size={18} />
                     </button>
-                    <button 
-                      onClick={() => handleDelete(p)} 
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
+                    <button onClick={() => handleDelete(p)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={18} />
                     </button>
                   </div>
