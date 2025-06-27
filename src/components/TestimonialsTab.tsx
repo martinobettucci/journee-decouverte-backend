@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { resolveImageUrl } from '../lib/image';
@@ -30,6 +31,28 @@ const TestimonialsTab: React.FC = () => {
       console.error('Erreur lors du chargement des témoignages:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const reorder = <T,>(list: T[], startIndex: number, endIndex: number): T[] => {
+    const result = Array.from(list);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    return result;
+  };
+
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination) return;
+    const newItems = reorder(testimonials, result.source.index, result.destination.index);
+    setTestimonials(newItems);
+    try {
+      await Promise.all(
+        newItems.map((t, idx) =>
+          supabase.from('testimonials').update({ order: idx }).eq('id', t.id)
+        )
+      );
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'ordre:', error);
     }
   };
 
@@ -79,47 +102,58 @@ const TestimonialsTab: React.FC = () => {
         </button>
       </div>
 
-      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-        <div className="grid gap-6 p-6">
-          {testimonials.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">Aucun témoignage trouvé</div>
-          ) : (
-            testimonials.map((t) => {
-              const logoUrl = resolveImageUrl(t.logo_url, bucket, supabase);
-              return (
-                <div
-                  key={t.id}
-                  className="border border-gray-200 rounded-lg p-6 flex justify-between items-start hover:shadow-md transition-shadow"
-                >
-                  <div className="flex space-x-4">
-                    <img src={logoUrl} alt={t.partner_name} className="h-16 w-16 object-contain" />
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{t.partner_name}</h3>
-                      <MarkdownRenderer content={t.quote} className="mb-1" style={{ fontSize: '14px' }} />
-                      <p className="text-sm text-gray-500">Note: {t.rating}/5</p>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(t)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(t)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
 
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="testimonials">
+          {(provided) => (
+            <div
+              className="bg-white shadow-sm rounded-lg overflow-hidden"
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+            >
+              <div className="grid gap-6 p-6">
+                {testimonials.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">Aucun témoignage trouvé</div>
+                ) : (
+                  testimonials.map((t, index) => {
+                    const logoUrl = resolveImageUrl(t.logo_url, bucket, supabase);
+                    return (
+                      <Draggable key={t.id} draggableId={t.id} index={index}>
+                        {(dragProvided) => (
+                          <div
+                            ref={dragProvided.innerRef}
+                            {...dragProvided.draggableProps}
+                            {...dragProvided.dragHandleProps}
+                            className="border border-gray-200 rounded-lg p-6 flex justify-between items-start hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex space-x-4">
+                              <img src={logoUrl} alt={t.partner_name} className="h-16 w-16 object-contain" />
+                              <div>
+                                <h3 className="text-lg font-semibold text-gray-900">{t.partner_name}</h3>
+                                <MarkdownRenderer content={t.quote} className="mb-1" style={{ fontSize: '14px' }} />
+                                <p className="text-sm text-gray-500">Note: {t.rating}/5</p>
+                              </div>
+                            </div>
+                            <div className="flex space-x-2">
+                              <button onClick={() => handleEdit(t)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                <Edit2 size={18} />
+                              </button>
+                              <button onClick={() => handleDelete(t)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  })
+                )}
+                {provided.placeholder}
+              </div>
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
       {showForm && (
         <TestimonialForm
           testimonial={editingTestimonial}
