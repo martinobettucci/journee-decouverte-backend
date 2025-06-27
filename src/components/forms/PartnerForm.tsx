@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, Plus, Trash2, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { resolveImageUrl } from '../../lib/image';
+import { uploadFile, STORAGE_BUCKETS } from '../../lib/storage';
 import type { Partner } from '../../types/database';
 
 interface PartnerFormProps {
@@ -12,7 +13,7 @@ interface PartnerFormProps {
 
 interface ResourceItem { url: string; description: string; }
 
-const bucket = 'partners';
+const bucket = STORAGE_BUCKETS.partners;
 
 const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -124,11 +125,12 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
       if (logoFile) {
         const ext = logoFile.name.split('.').pop();
         const fileName = `logo-${Date.now()}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(fileName, logoFile, { upsert: true });
-        if (uploadError) throw uploadError;
-        logoPath = fileName;
+        
+        const uploadResult = await uploadFile(bucket, fileName, logoFile);
+        if (!uploadResult.success) {
+          throw new Error(uploadResult.error || 'Failed to upload logo');
+        }
+        logoPath = uploadResult.path || fileName;
       }
 
       const data = {
@@ -172,7 +174,11 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {error && <div className="text-red-500 text-sm">{error}</div>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+              {error}
+            </div>
+          )}
           {partner && (
             <div>
               <label className="block text-sm font-medium text-gray-700">ID</label>
@@ -180,7 +186,7 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
                 type="text"
                 readOnly
                 value={partner.id}
-                className="mt-1 block w-full border-gray-300 rounded-md text-sm"
+                className="mt-1 block w-full border-gray-300 rounded-md text-sm bg-gray-50"
               />
             </div>
           )}
@@ -198,8 +204,17 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Logo *</label>
-            <input type="file" accept="image/*" onChange={handleLogoChange} className="mt-1" />
-            {logoPreview && <img src={logoPreview} alt="Preview" className="mt-2 h-24" />}
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleLogoChange} 
+              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+            />
+            {logoPreview && (
+              <div className="mt-2">
+                <img src={logoPreview} alt="Preview" className="h-24 w-24 object-contain border border-gray-200 rounded-md" />
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Site web *</label>
@@ -214,7 +229,8 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
               <button
                 type="button"
                 onClick={openWebsite}
-                className="px-3 py-2 bg-gray-100 rounded-md text-gray-700 hover:bg-gray-200"
+                disabled={!formData.website_url}
+                className="px-3 py-2 bg-gray-100 rounded-md text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ExternalLink size={16} />
               </button>
@@ -232,7 +248,7 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700">Spécialisations</label>
-              <button type="button" onClick={addSpecialization} className="flex items-center space-x-1 text-sm text-green-600">
+              <button type="button" onClick={addSpecialization} className="flex items-center space-x-1 text-sm text-green-600 hover:text-green-700">
                 <Plus size={14} /> <span>Ajouter</span>
               </button>
             </div>
@@ -254,7 +270,7 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700">Lieux</label>
-              <button type="button" onClick={addLocation} className="flex items-center space-x-1 text-sm text-green-600">
+              <button type="button" onClick={addLocation} className="flex items-center space-x-1 text-sm text-green-600 hover:text-green-700">
                 <Plus size={14} /> <span>Ajouter</span>
               </button>
             </div>
@@ -276,7 +292,7 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-700">Ressources</label>
-              <button type="button" onClick={addResource} className="flex items-center space-x-1 text-sm text-green-600">
+              <button type="button" onClick={addResource} className="flex items-center space-x-1 text-sm text-green-600 hover:text-green-700">
                 <Plus size={14} /> <span>Ajouter</span>
               </button>
             </div>
@@ -324,7 +340,7 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
                 type="text"
                 readOnly
                 value={new Date(partner.created_at ?? '').toLocaleString()}
-                className="mt-1 block w-full border-gray-300 rounded-md text-sm"
+                className="mt-1 block w-full border-gray-300 rounded-md text-sm bg-gray-50"
               />
             </div>
           )}
