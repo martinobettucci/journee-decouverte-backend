@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, Eye, EyeOff, FileText } from 'lucide-react';
+import MarkdownRenderer from '../common/MarkdownRenderer';
 import { supabase } from '../../lib/supabase';
 import { resolveImageUrl } from '../../lib/image';
 import type { Testimonial } from '../../types/database';
@@ -24,6 +25,7 @@ const TestimonialForm: React.FC<TestimonialFormProps> = ({ testimonial, onClose,
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     if (testimonial) {
@@ -120,15 +122,55 @@ const TestimonialForm: React.FC<TestimonialFormProps> = ({ testimonial, onClose,
               required
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Citation</label>
-            <textarea
-              value={formData.quote}
-              onChange={(e) => setFormData(prev => ({ ...prev, quote: e.target.value }))}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-              required
-            />
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">Citation (Markdown)</label>
+            <button
+              type="button"
+              onClick={() => setShowPreview(!showPreview)}
+              className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                showPreview ? 'text-white bg-green-600 hover:bg-green-700' : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              {showPreview ? <EyeOff size={16} /> : <Eye size={16} />}
+              <span>{showPreview ? 'Retour à l\'édition' : 'Prévisualiser'}</span>
+            </button>
           </div>
+
+          {showPreview ? (
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Eye className="text-green-600" size={16} />
+                  <span className="font-medium text-green-900">Mode Prévisualisation</span>
+                </div>
+                <p className="text-sm text-green-700">Aperçu du rendu de la citation.</p>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-lg p-6 max-h-96 overflow-y-auto">
+                {formData.quote ? (
+                  <MarkdownRenderer content={formData.quote} style={{ fontSize: '14px' }} />
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <FileText className="mx-auto mb-4" size={48} />
+                    <p className="text-lg font-medium mb-2">Aucun contenu à prévisualiser</p>
+                    <p className="text-sm">Retournez en mode édition pour saisir du contenu Markdown</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <textarea
+                value={formData.quote}
+                onChange={(e) => setFormData(prev => ({ ...prev, quote: e.target.value }))}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                required
+              />
+              <p className="text-xs text-gray-500">
+                Utilisez la syntaxe Markdown pour formater le contenu (liens, emphases, etc.)
+              </p>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700">Note (1-5)</label>
             <input
