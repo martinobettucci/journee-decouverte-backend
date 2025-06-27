@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { resolveImageUrl } from '../lib/image';
 import TestimonialForm from './forms/TestimonialForm';
+import MarkdownRenderer from './common/MarkdownRenderer';
 import type { Testimonial } from '../types/database';
 
 const bucket = 'testimonials';
@@ -94,7 +95,7 @@ const TestimonialsTab: React.FC = () => {
                     <img src={logoUrl} alt={t.partner_name} className="h-16 w-16 object-contain" />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{t.partner_name}</h3>
-                      <p className="text-gray-700 mb-1">{t.quote}</p>
+                      <MarkdownRenderer content={t.quote} className="mb-1" style={{ fontSize: '14px' }} />
                       <p className="text-sm text-gray-500">Note: {t.rating}/5</p>
                     </div>
                   </div>
