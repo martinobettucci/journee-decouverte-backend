@@ -4,6 +4,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase, testConnection } from '../lib/supabase';
 import TrainerForm from './forms/TrainerForm';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { WorkshopTrainer, ContractTemplate } from '../types/database';
 
 interface TrainerWithContract extends WorkshopTrainer {
@@ -25,10 +27,19 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
   const [trainers, setTrainers] = useState<TrainerWithContract[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingTrainer, setEditingTrainer] = useState<WorkshopTrainer | null>(null);
+  const [deleteTargetTrainer, setDeleteTargetTrainer] = useState<WorkshopTrainer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [filterDate, setFilterDate] = useState<string | null>(initialFilterDate);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setFilterDate(initialFilterDate);
@@ -37,6 +48,11 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
   useEffect(() => {
     fetchTrainers();
   }, [filterDate]);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const fetchTrainers = async () => {
     try {
@@ -156,21 +172,46 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce formateur ?')) {
-      try {
-        const { error } = await supabase
-          .from('workshop_trainers')
-          .delete()
-          .eq('id', id);
+  const handleDeleteClick = (trainer: WorkshopTrainer) => {
+    setDeleteTargetTrainer(trainer);
+    setShowDeleteModal(true);
+  };
 
-        if (error) throw error;
-        fetchTrainers();
-      } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
-        setError('Erreur lors de la suppression du formateur');
-      }
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetTrainer) return;
+
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from('workshop_trainers')
+        .delete()
+        .eq('id', deleteTargetTrainer.id);
+
+      if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetTrainer(null);
+      showNotification(
+        'Formateur supprimé',
+        'Le formateur a été supprimé avec succès.',
+        'success'
+      );
+      fetchTrainers();
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression du formateur.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetTrainer(null);
   };
 
   const handleToggleTrainerCodeSent = async (trainerId: string, currentStatus: boolean) => {
@@ -186,7 +227,11 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
       fetchTrainers();
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut d\'envoi:', error);
-      setError('Erreur lors de la mise à jour du statut d\'envoi du code');
+      showNotification(
+        'Erreur de mise à jour',
+        'Une erreur est survenue lors de la mise à jour du statut d\'envoi du code.',
+        'error'
+      );
     }
   };
 
@@ -203,7 +248,11 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
       fetchTrainers();
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut abandonné:', error);
-      setError('Erreur lors de la mise à jour du statut abandonné');
+      showNotification(
+        'Erreur de mise à jour',
+        'Une erreur est survenue lors de la mise à jour du statut abandonné.',
+        'error'
+      );
     }
   };
 
@@ -471,7 +520,7 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
                       <Edit2 size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(trainer.id)}
+                      onClick={() => handleDeleteClick(trainer)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Supprimer le formateur"
                     >
@@ -571,6 +620,31 @@ const TrainersTab: React.FC<TrainersTabProps> = ({ initialFilterDate, allWorksho
           onSave={fetchTrainers}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer le formateur"
+        message={deleteTargetTrainer ? 
+          `Êtes-vous sûr de vouloir supprimer ce formateur ?\n\nCode: ${deleteTargetTrainer.trainer_code}\nAtelier: ${format(new Date(deleteTargetTrainer.workshop_date), 'dd MMMM yyyy', { locale: fr })}\n\nCette action ne peut pas être annulée.` : 
+          ''
+        }
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };

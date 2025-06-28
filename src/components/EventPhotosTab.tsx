@@ -3,6 +3,8 @@ import { Plus, Edit2, Trash2, Image as ImageIcon, Filter, X } from 'lucide-react
 import { supabase } from '../lib/supabase';
 import { resolveImageUrl } from '../lib/image';
 import EventPhotoForm from './forms/EventPhotoForm';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { EventPhoto, Event } from '../types/database';
 
 const bucket = 'event-photos';
@@ -17,8 +19,17 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<EventPhoto | null>(null);
+  const [deleteTargetPhoto, setDeleteTargetPhoto] = useState<EventPhoto | null>(null);
   const [filterEventId, setFilterEventId] = useState<string | null>(initialFilterEventId);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchEvents();
@@ -31,6 +42,11 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
   useEffect(() => {
     setFilterEventId(initialFilterEventId);
   }, [initialFilterEventId]);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const fetchPhotos = async () => {
     try {
@@ -49,6 +65,11 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
       setPhotos(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des photos:', error);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des photos.',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -63,6 +84,11 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
       setEvents(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des événements:', error);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des événements.',
+        'error'
+      );
     }
   };
 
@@ -70,7 +96,6 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
     const event = events.find(e => e.id === eventId);
     return event ? event.occasion : 'Événement inconnu';
   };
-
 
   const handleFilterChange = (newId: string) => {
     const value = newId === '' ? null : newId;
@@ -88,19 +113,46 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
     setShowForm(true);
   };
 
-  const handleDelete = async (photo: EventPhoto) => {
-    if (!confirm('Supprimer cette photo ?')) return;
+  const handleDeleteClick = (photo: EventPhoto) => {
+    setDeleteTargetPhoto(photo);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetPhoto) return;
+
     try {
-      await supabase.storage.from(bucket).remove([photo.src]);
+      setIsDeleting(true);
+      await supabase.storage.from(bucket).remove([deleteTargetPhoto.src]);
       const { error } = await supabase
         .from('event_photos')
         .delete()
-        .eq('id', photo.id);
+        .eq('id', deleteTargetPhoto.id);
       if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetPhoto(null);
+      showNotification(
+        'Photo supprimée',
+        'La photo a été supprimée avec succès.',
+        'success'
+      );
       fetchPhotos();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression de la photo.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetPhoto(null);
   };
 
   const handleCloseForm = () => {
@@ -185,7 +237,7 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
                   <button onClick={() => handleEdit(photo)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                     <Edit2 size={18} />
                   </button>
-                  <button onClick={() => handleDelete(photo)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                  <button onClick={() => handleDeleteClick(photo)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 size={18} />
                   </button>
                 </div>
@@ -203,6 +255,31 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
           events={events}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer la photo"
+        message={deleteTargetPhoto ? 
+          `Êtes-vous sûr de vouloir supprimer cette photo ?\n\nCette action supprimera définitivement le fichier et ne peut pas être annulée.` : 
+          ''
+        }
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };

@@ -4,6 +4,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import EventForm from './forms/EventForm';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { Event } from '../types/database';
 
 interface EventsTabProps {
@@ -14,11 +16,25 @@ const EventsTab: React.FC<EventsTabProps> = ({ onManagePhotos }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [deleteTargetEventId, setDeleteTargetEventId] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const fetchEvents = async () => {
     try {
@@ -31,6 +47,11 @@ const EventsTab: React.FC<EventsTabProps> = ({ onManagePhotos }) => {
       setEvents(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des événements:', error);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des événements.',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -41,20 +62,46 @@ const EventsTab: React.FC<EventsTabProps> = ({ onManagePhotos }) => {
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) {
-      try {
-        const { error } = await supabase
-          .from('events')
-          .delete()
-          .eq('id', id);
+  const handleDeleteClick = (id: string) => {
+    setDeleteTargetEventId(id);
+    setShowDeleteModal(true);
+  };
 
-        if (error) throw error;
-        fetchEvents();
-      } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
-      }
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetEventId) return;
+
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', deleteTargetEventId);
+
+      if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetEventId(null);
+      showNotification(
+        'Événement supprimé',
+        'L\'événement a été supprimé avec succès.',
+        'success'
+      );
+      fetchEvents();
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression de l\'événement.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetEventId(null);
   };
 
   const handleCloseForm = () => {
@@ -140,7 +187,7 @@ const EventsTab: React.FC<EventsTabProps> = ({ onManagePhotos }) => {
                       <Image size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(event.id)}
+                      onClick={() => handleDeleteClick(event.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <Trash2 size={18} />
@@ -160,6 +207,28 @@ const EventsTab: React.FC<EventsTabProps> = ({ onManagePhotos }) => {
           onSave={fetchEvents}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer l'événement"
+        message="Êtes-vous sûr de vouloir supprimer cet événement ?\n\nCette action ne peut pas être annulée."
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };

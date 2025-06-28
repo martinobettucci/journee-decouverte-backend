@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabase';
 import WorkshopForm from './forms/WorkshopForm';
 import ClientContractForm from './forms/ClientContractForm';
 import ClientContractViewerModal from './common/ClientContractViewerModal';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { WorkshopWithStatus, ClientContract, TrainerRegistration } from '../types/database';
 
 interface WorkshopsTabProps {
@@ -18,12 +20,26 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
   const [showForm, setShowForm] = useState(false);
   const [showClientContractForm, setShowClientContractForm] = useState(false);
   const [showClientContractViewer, setShowClientContractViewer] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingWorkshop, setEditingWorkshop] = useState<WorkshopWithStatus | null>(null);
   const [selectedClientContract, setSelectedClientContract] = useState<ClientContract | null>(null);
+  const [deleteTargetWorkshopId, setDeleteTargetWorkshopId] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchWorkshops();
   }, []);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const fetchWorkshops = async () => {
     try {
@@ -126,6 +142,11 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
       setWorkshops(workshopsWithStatus);
     } catch (error) {
       console.error('Erreur lors du chargement des ateliers:', error);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des ateliers.',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -136,80 +157,104 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet atelier ? Cette action supprimera également tous les formateurs, inscriptions, contrats et documents associés à cet atelier.')) {
-      try {
-        // First, get the workshop to access its date
-        const { data: workshop, error: fetchError } = await supabase
-          .from('workshop_passwords')
-          .select('date')
-          .eq('id', id)
-          .single();
+  const handleDeleteClick = (id: string) => {
+    setDeleteTargetWorkshopId(id);
+    setShowDeleteModal(true);
+  };
 
-        if (fetchError) throw fetchError;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetWorkshopId) return;
 
-        const workshopDate = workshop.date;
+    try {
+      setIsDeleting(true);
+      // First, get the workshop to access its date
+      const { data: workshop, error: fetchError } = await supabase
+        .from('workshop_passwords')
+        .select('date')
+        .eq('id', deleteTargetWorkshopId)
+        .single();
 
-        // Delete in the correct order to respect foreign key constraints
+      if (fetchError) throw fetchError;
 
-        // 1. Delete contract assignments (references workshop_trainers and contract_templates)
-        const { data: trainersForWorkshop } = await supabase
-          .from('workshop_trainers')
-          .select('id')
-          .eq('workshop_date', workshopDate);
+      const workshopDate = workshop.date;
 
-        if (trainersForWorkshop && trainersForWorkshop.length > 0) {
-          const trainerIds = trainersForWorkshop.map(t => t.id);
-          await supabase
-            .from('contract_assignments')
-            .delete()
-            .in('trainer_id', trainerIds);
-        }
+      // Delete in the correct order to respect foreign key constraints
 
-        // 2. Delete trainer registrations (references workshop_trainers and workshop_passwords)
+      // 1. Delete contract assignments (references workshop_trainers and contract_templates)
+      const { data: trainersForWorkshop } = await supabase
+        .from('workshop_trainers')
+        .select('id')
+        .eq('workshop_date', workshopDate);
+
+      if (trainersForWorkshop && trainersForWorkshop.length > 0) {
+        const trainerIds = trainersForWorkshop.map(t => t.id);
         await supabase
-          .from('trainer_registrations')
+          .from('contract_assignments')
           .delete()
-          .eq('workshop_date', workshopDate);
-
-        // 3. Delete workshop trainers (references workshop_passwords)
-        await supabase
-          .from('workshop_trainers')
-          .delete()
-          .eq('workshop_date', workshopDate);
-
-        // 4. Delete client contracts (references workshop_passwords)
-        await supabase
-          .from('client_contracts')
-          .delete()
-          .eq('workshop_date', workshopDate);
-
-        // 5. Delete workshop guidelines (references workshop_passwords)
-        await supabase
-          .from('workshop_guidelines')
-          .delete()
-          .eq('workshop_date', workshopDate);
-
-        // 6. Delete contract templates (references workshop_passwords)
-        await supabase
-          .from('contract_templates')
-          .delete()
-          .eq('workshop_date', workshopDate);
-
-        // 7. Finally, delete the workshop itself
-        const { error } = await supabase
-          .from('workshop_passwords')
-          .delete()
-          .eq('id', id);
-
-        if (error) throw error;
-
-        fetchWorkshops();
-      } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
-        alert('Erreur lors de la suppression de l\'atelier. Veuillez réessayer.');
+          .in('trainer_id', trainerIds);
       }
+
+      // 2. Delete trainer registrations (references workshop_trainers and workshop_passwords)
+      await supabase
+        .from('trainer_registrations')
+        .delete()
+        .eq('workshop_date', workshopDate);
+
+      // 3. Delete workshop trainers (references workshop_passwords)
+      await supabase
+        .from('workshop_trainers')
+        .delete()
+        .eq('workshop_date', workshopDate);
+
+      // 4. Delete client contracts (references workshop_passwords)
+      await supabase
+        .from('client_contracts')
+        .delete()
+        .eq('workshop_date', workshopDate);
+
+      // 5. Delete workshop guidelines (references workshop_passwords)
+      await supabase
+        .from('workshop_guidelines')
+        .delete()
+        .eq('workshop_date', workshopDate);
+
+      // 6. Delete contract templates (references workshop_passwords)
+      await supabase
+        .from('contract_templates')
+        .delete()
+        .eq('workshop_date', workshopDate);
+
+      // 7. Finally, delete the workshop itself
+      const { error } = await supabase
+        .from('workshop_passwords')
+        .delete()
+        .eq('id', deleteTargetWorkshopId);
+
+      if (error) throw error;
+
+      setShowDeleteModal(false);
+      setDeleteTargetWorkshopId(null);
+      showNotification(
+        'Atelier supprimé',
+        'L\'atelier a été supprimé avec succès ainsi que toutes ses données associées.',
+        'success'
+      );
+      fetchWorkshops();
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression de l\'atelier. Veuillez réessayer.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetWorkshopId(null);
   };
 
   const handleManageClientContract = (workshop: WorkshopWithStatus) => {
@@ -236,7 +281,11 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
       fetchWorkshops();
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut d\'envoi:', error);
-      alert('Erreur lors de la mise à jour du statut d\'envoi du code signature');
+      showNotification(
+        'Erreur de mise à jour',
+        'Une erreur est survenue lors de la mise à jour du statut d\'envoi du code signature.',
+        'error'
+      );
     }
   };
 
@@ -252,7 +301,11 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
       fetchWorkshops();
     } catch (error) {
       console.error('Erreur lors de la mise à jour du paiement client:', error);
-      alert("Erreur lors de la mise à jour du statut d'encaissement client");
+      showNotification(
+        'Erreur de mise à jour',
+        'Une erreur est survenue lors de la mise à jour du statut d\'encaissement client.',
+        'error'
+      );
     }
   };
 
@@ -535,7 +588,7 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
                           <Edit2 size={18} />
                         </button>
                         <button
-                          onClick={() => handleDelete(workshop.id)}
+                          onClick={() => handleDeleteClick(workshop.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Supprimer l'atelier"
                         >
@@ -599,6 +652,28 @@ const WorkshopsTab: React.FC<WorkshopsTabProps> = ({ onNavigateWithFilter }) => 
           onClose={handleCloseClientContractViewer}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer l'atelier"
+        message="Êtes-vous sûr de vouloir supprimer cet atelier ?\n\nCette action supprimera également tous les formateurs, inscriptions, contrats et documents associés à cet atelier.\n\nCette action ne peut pas être annulée."
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };

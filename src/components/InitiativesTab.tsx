@@ -3,6 +3,8 @@ import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { resolveImageUrl } from '../lib/image';
 import InitiativeForm from './forms/InitiativeForm';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { Initiative } from '../types/database';
 
 const bucket = 'initiatives';
@@ -11,11 +13,25 @@ const InitiativesTab: React.FC = () => {
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingInitiative, setEditingInitiative] = useState<Initiative | null>(null);
+  const [deleteTargetInitiative, setDeleteTargetInitiative] = useState<Initiative | null>(null);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchInitiatives();
   }, []);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const fetchInitiatives = async () => {
     try {
@@ -27,6 +43,11 @@ const InitiativesTab: React.FC = () => {
       setInitiatives(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des initiatives:', error);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des initiatives.',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -37,28 +58,54 @@ const InitiativesTab: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (initiative: Initiative) => {
-    if (!confirm('Supprimer cette initiative ?')) return;
+  const handleDeleteClick = (initiative: Initiative) => {
+    setDeleteTargetInitiative(initiative);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetInitiative) return;
+
     try {
-      if (initiative.image_url) {
-        await supabase.storage.from(bucket).remove([initiative.image_url]);
+      setIsDeleting(true);
+      if (deleteTargetInitiative.image_url) {
+        await supabase.storage.from(bucket).remove([deleteTargetInitiative.image_url]);
       }
-      if (initiative.logo_url) {
-        await supabase.storage.from(bucket).remove([initiative.logo_url]);
+      if (deleteTargetInitiative.logo_url) {
+        await supabase.storage.from(bucket).remove([deleteTargetInitiative.logo_url]);
       }
-      const { error } = await supabase.from('initiatives').delete().eq('id', initiative.id);
+      const { error } = await supabase.from('initiatives').delete().eq('id', deleteTargetInitiative.id);
       if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetInitiative(null);
+      showNotification(
+        'Initiative supprimée',
+        'L\'initiative a été supprimée avec succès.',
+        'success'
+      );
       fetchInitiatives();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression de l\'initiative.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetInitiative(null);
   };
 
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingInitiative(null);
   };
-
 
   if (loading) {
     return (
@@ -121,7 +168,7 @@ const InitiativesTab: React.FC = () => {
                     <Edit2 size={18} />
                   </button>
                   <button
-                    onClick={() => handleDelete(initiative)}
+                    onClick={() => handleDeleteClick(initiative)}
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <Trash2 size={18} />
@@ -140,6 +187,31 @@ const InitiativesTab: React.FC = () => {
           onSave={fetchInitiatives}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer l'initiative"
+        message={deleteTargetInitiative ? 
+          `Êtes-vous sûr de vouloir supprimer l'initiative "${deleteTargetInitiative.title}" ?\n\nCette action supprimera également tous les fichiers associés et ne peut pas être annulée.` : 
+          ''
+        }
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };

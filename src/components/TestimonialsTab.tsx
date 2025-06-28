@@ -5,6 +5,8 @@ import { supabase } from '../lib/supabase';
 import { resolveImageUrl } from '../lib/image';
 import TestimonialForm from './forms/TestimonialForm';
 import MarkdownRenderer from './common/MarkdownRenderer';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { Testimonial } from '../types/database';
 
 const bucket = 'testimonials';
@@ -13,11 +15,25 @@ const TestimonialsTab: React.FC = () => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
+  const [deleteTargetTestimonial, setDeleteTargetTestimonial] = useState<Testimonial | null>(null);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchTestimonials();
   }, []);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const fetchTestimonials = async () => {
     try {
@@ -29,6 +45,11 @@ const TestimonialsTab: React.FC = () => {
       setTestimonials(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des témoignages:', error);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des témoignages.',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -53,6 +74,11 @@ const TestimonialsTab: React.FC = () => {
       );
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'ordre:', error);
+      showNotification(
+        'Erreur de sauvegarde',
+        'Une erreur est survenue lors de la mise à jour de l\'ordre.',
+        'error'
+      );
     }
   };
 
@@ -61,16 +87,43 @@ const TestimonialsTab: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (t: Testimonial) => {
-    if (!confirm('Supprimer ce témoignage ?')) return;
+  const handleDeleteClick = (t: Testimonial) => {
+    setDeleteTargetTestimonial(t);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetTestimonial) return;
+
     try {
-      await supabase.storage.from('testimonials').remove([t.logo_url]);
-      const { error } = await supabase.from('testimonials').delete().eq('id', t.id);
+      setIsDeleting(true);
+      await supabase.storage.from('testimonials').remove([deleteTargetTestimonial.logo_url]);
+      const { error } = await supabase.from('testimonials').delete().eq('id', deleteTargetTestimonial.id);
       if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetTestimonial(null);
+      showNotification(
+        'Témoignage supprimé',
+        'Le témoignage a été supprimé avec succès.',
+        'success'
+      );
       fetchTestimonials();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression du témoignage.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetTestimonial(null);
   };
 
   const handleCloseForm = () => {
@@ -101,7 +154,6 @@ const TestimonialsTab: React.FC = () => {
           <span>Nouveau Témoignage</span>
         </button>
       </div>
-
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable droppableId="testimonials">
@@ -138,7 +190,7 @@ const TestimonialsTab: React.FC = () => {
                               <button onClick={() => handleEdit(t)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                                 <Edit2 size={18} />
                               </button>
-                              <button onClick={() => handleDelete(t)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                              <button onClick={() => handleDeleteClick(t)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                                 <Trash2 size={18} />
                               </button>
                             </div>
@@ -154,6 +206,7 @@ const TestimonialsTab: React.FC = () => {
           )}
         </Droppable>
       </DragDropContext>
+
       {showForm && (
         <TestimonialForm
           testimonial={editingTestimonial}
@@ -161,6 +214,31 @@ const TestimonialsTab: React.FC = () => {
           onSave={fetchTestimonials}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer le témoignage"
+        message={deleteTargetTestimonial ? 
+          `Êtes-vous sûr de vouloir supprimer ce témoignage ?\n\nPartenaire: "${deleteTargetTestimonial.partner_name}"\nNote: ${deleteTargetTestimonial.rating}/5\n\nCette action ne peut pas être annulée.` : 
+          ''
+        }
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };

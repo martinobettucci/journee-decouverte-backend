@@ -4,6 +4,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import GuidelinesForm from './forms/GuidelinesForm';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { WorkshopGuidelines } from '../types/database';
 
 interface GuidelinesTabProps {
@@ -16,8 +18,17 @@ const GuidelinesTab: React.FC<GuidelinesTabProps> = ({ initialFilterDate, allWor
   const [guidelines, setGuidelines] = useState<WorkshopGuidelines[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingGuidelines, setEditingGuidelines] = useState<WorkshopGuidelines | null>(null);
+  const [deleteTargetDate, setDeleteTargetDate] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<string | null>(initialFilterDate);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setFilterDate(initialFilterDate);
@@ -26,6 +37,11 @@ const GuidelinesTab: React.FC<GuidelinesTabProps> = ({ initialFilterDate, allWor
   useEffect(() => {
     fetchGuidelines();
   }, [filterDate]);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const handleFilterChange = (newDate: string) => {
     const dateValue = newDate === '' ? null : newDate;
@@ -56,6 +72,11 @@ const GuidelinesTab: React.FC<GuidelinesTabProps> = ({ initialFilterDate, allWor
       setGuidelines(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des directives:', error);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des directives.',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -66,20 +87,46 @@ const GuidelinesTab: React.FC<GuidelinesTabProps> = ({ initialFilterDate, allWor
     setShowForm(true);
   };
 
-  const handleDelete = async (workshop_date: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ces directives ?')) {
-      try {
-        const { error } = await supabase
-          .from('workshop_guidelines')
-          .delete()
-          .eq('workshop_date', workshop_date);
+  const handleDeleteClick = (workshop_date: string) => {
+    setDeleteTargetDate(workshop_date);
+    setShowDeleteModal(true);
+  };
 
-        if (error) throw error;
-        fetchGuidelines();
-      } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
-      }
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetDate) return;
+
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from('workshop_guidelines')
+        .delete()
+        .eq('workshop_date', deleteTargetDate);
+
+      if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetDate(null);
+      showNotification(
+        'Directives supprimées',
+        'Les directives ont été supprimées avec succès.',
+        'success'
+      );
+      fetchGuidelines();
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression des directives.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetDate(null);
   };
 
   const handleCloseForm = () => {
@@ -181,7 +228,7 @@ const GuidelinesTab: React.FC<GuidelinesTabProps> = ({ initialFilterDate, allWor
                       <Edit2 size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(guideline.workshop_date)}
+                      onClick={() => handleDeleteClick(guideline.workshop_date)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <Trash2 size={18} />
@@ -216,6 +263,31 @@ const GuidelinesTab: React.FC<GuidelinesTabProps> = ({ initialFilterDate, allWor
           onSave={fetchGuidelines}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer les directives"
+        message={deleteTargetDate ? 
+          `Êtes-vous sûr de vouloir supprimer ces directives ?\n\nAtelier du ${format(new Date(deleteTargetDate), 'dd MMMM yyyy', { locale: fr })}\n\nCette action ne peut pas être annulée.` : 
+          ''
+        }
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };

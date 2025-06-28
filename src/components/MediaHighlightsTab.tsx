@@ -5,6 +5,8 @@ import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import { resolveImageUrl } from '../lib/image';
 import MediaHighlightForm from './forms/MediaHighlightForm';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { MediaHighlight } from '../types/database';
 
 const bucket = 'media-highlights';
@@ -13,11 +15,25 @@ const MediaHighlightsTab: React.FC = () => {
   const [highlights, setHighlights] = useState<MediaHighlight[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingHighlight, setEditingHighlight] = useState<MediaHighlight | null>(null);
+  const [deleteTargetHighlight, setDeleteTargetHighlight] = useState<MediaHighlight | null>(null);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchHighlights();
   }, []);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const fetchHighlights = async () => {
     try {
@@ -29,6 +45,11 @@ const MediaHighlightsTab: React.FC = () => {
       setHighlights(data || []);
     } catch (err) {
       console.error('Erreur lors du chargement des médias:', err);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des médias.',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -39,15 +60,42 @@ const MediaHighlightsTab: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (h: MediaHighlight) => {
-    if (!confirm('Supprimer cette mise en avant média ?')) return;
+  const handleDeleteClick = (h: MediaHighlight) => {
+    setDeleteTargetHighlight(h);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetHighlight) return;
+
     try {
-      const { error } = await supabase.from('media_highlights').delete().eq('id', h.id);
+      setIsDeleting(true);
+      const { error } = await supabase.from('media_highlights').delete().eq('id', deleteTargetHighlight.id);
       if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetHighlight(null);
+      showNotification(
+        'Média supprimé',
+        'Le média a été supprimé avec succès.',
+        'success'
+      );
       fetchHighlights();
     } catch (err) {
       console.error('Erreur lors de la suppression:', err);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression du média.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetHighlight(null);
   };
 
   const handleCloseForm = () => {
@@ -108,7 +156,7 @@ const MediaHighlightsTab: React.FC = () => {
                     <button onClick={() => handleEdit(h)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <Edit2 size={18} />
                     </button>
-                    <button onClick={() => handleDelete(h)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <button onClick={() => handleDeleteClick(h)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -126,6 +174,31 @@ const MediaHighlightsTab: React.FC = () => {
           onSave={fetchHighlights}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer le média"
+        message={deleteTargetHighlight ? 
+          `Êtes-vous sûr de vouloir supprimer cette mise en avant média ?\n\nTitre: "${deleteTargetHighlight.title}"\nMédia: ${deleteTargetHighlight.media_name}\n\nCette action ne peut pas être annulée.` : 
+          ''
+        }
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };

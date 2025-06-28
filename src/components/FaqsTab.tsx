@@ -5,17 +5,33 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import FaqForm from './forms/FaqForm';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { Faq } from '../types/database';
 
 const FaqsTab: React.FC = () => {
   const [faqs, setFaqs] = useState<Faq[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingFaq, setEditingFaq] = useState<Faq | null>(null);
+  const [deleteTargetFaq, setDeleteTargetFaq] = useState<Faq | null>(null);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchFaqs();
   }, []);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const fetchFaqs = async () => {
     try {
@@ -27,6 +43,11 @@ const FaqsTab: React.FC = () => {
       setFaqs(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des FAQs:', error);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des FAQs.',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -51,6 +72,11 @@ const FaqsTab: React.FC = () => {
       );
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'ordre:', error);
+      showNotification(
+        'Erreur de sauvegarde',
+        'Une erreur est survenue lors de la mise à jour de l\'ordre.',
+        'error'
+      );
     }
   };
 
@@ -59,15 +85,42 @@ const FaqsTab: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (faq: Faq) => {
-    if (!confirm('Supprimer cette FAQ ?')) return;
+  const handleDeleteClick = (faq: Faq) => {
+    setDeleteTargetFaq(faq);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetFaq) return;
+
     try {
-      const { error } = await supabase.from('faqs').delete().eq('id', faq.id);
+      setIsDeleting(true);
+      const { error } = await supabase.from('faqs').delete().eq('id', deleteTargetFaq.id);
       if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetFaq(null);
+      showNotification(
+        'FAQ supprimée',
+        'La FAQ a été supprimée avec succès.',
+        'success'
+      );
       fetchFaqs();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression de la FAQ.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetFaq(null);
   };
 
   const handleCloseForm = () => {
@@ -133,7 +186,7 @@ const FaqsTab: React.FC = () => {
                                 <Edit2 size={18} />
                               </button>
                               <button
-                                onClick={() => handleDelete(faq)}
+                                onClick={() => handleDeleteClick(faq)}
                                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               >
                                 <Trash2 size={18} />
@@ -170,6 +223,31 @@ const FaqsTab: React.FC = () => {
       {showForm && (
         <FaqForm faq={editingFaq} onClose={handleCloseForm} onSave={fetchFaqs} />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer la FAQ"
+        message={deleteTargetFaq ? 
+          `Êtes-vous sûr de vouloir supprimer cette FAQ ?\n\nQuestion: "${deleteTargetFaq.question}"\n\nCette action ne peut pas être annulée.` : 
+          ''
+        }
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };

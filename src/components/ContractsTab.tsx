@@ -27,11 +27,13 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
   const [showForm, setShowForm] = useState(false);
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
   const [showCloneForm, setShowCloneForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUnassignModal, setShowUnassignModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingContract, setEditingContract] = useState<ContractWithAssignments | null>(null);
   const [cloneSourceContract, setCloneSourceContract] = useState<ContractTemplate | null>(null);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const [deleteTargetContract, setDeleteTargetContract] = useState<ContractWithAssignments | null>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<{
     assignmentId: string;
     trainerCode: string;
@@ -46,6 +48,7 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
   const [filterType, setFilterType] = useState<'all' | 'trainer' | 'client'>('all');
   const [filterDate, setFilterDate] = useState<string | null>(initialFilterDate);
   const [isUnassigning, setIsUnassigning] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setFilterDate(initialFilterDate);
@@ -159,7 +162,7 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
     setShowCloneForm(true);
   };
 
-  const handleDelete = async (contract: ContractWithAssignments) => {
+  const handleDeleteClick = (contract: ContractWithAssignments) => {
     if (isContractLocked(contract)) {
       showNotification(
         'Suppression impossible',
@@ -168,31 +171,45 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
       );
       return;
     }
-    const id = contract.id;
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce contrat ? Les affectations seront également supprimées.')) {
-      try {
-        const { error } = await supabase
-          .from('contract_templates')
-          .delete()
-          .eq('id', id);
+    setDeleteTargetContract(contract);
+    setShowDeleteModal(true);
+  };
 
-        if (error) throw error;
-        
-        showNotification(
-          'Contrat supprimé',
-          'Le contrat a été supprimé avec succès.',
-          'success'
-        );
-        fetchContracts();
-      } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
-        showNotification(
-          'Erreur de suppression',
-          'Une erreur est survenue lors de la suppression du contrat.',
-          'error'
-        );
-      }
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetContract) return;
+
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from('contract_templates')
+        .delete()
+        .eq('id', deleteTargetContract.id);
+
+      if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetContract(null);
+      showNotification(
+        'Contrat supprimé',
+        'Le contrat a été supprimé avec succès.',
+        'success'
+      );
+      fetchContracts();
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression du contrat.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetContract(null);
   };
 
   const handleAssignContract = (contractId: string) => {
@@ -532,7 +549,7 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
                       <Edit2 size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(contract)}
+                      onClick={() => handleDeleteClick(contract)}
                       disabled={isContractLocked(contract)}
                       className={`p-2 rounded-lg transition-colors ${
                         isContractLocked(contract)
@@ -594,6 +611,21 @@ const ContractsTab: React.FC<ContractsTabProps> = ({ initialFilterDate, allWorks
           onSave={fetchContracts}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer le contrat"
+        message={deleteTargetContract ? 
+          `Êtes-vous sûr de vouloir supprimer le contrat "${deleteTargetContract.name}" ?\n\nCette action supprimera également toutes les affectations associées et ne peut pas être annulée.` : 
+          ''
+        }
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
 
       <ConfirmationModal
         isOpen={showUnassignModal}

@@ -5,6 +5,8 @@ import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import { resolveImageUrl } from '../lib/image';
 import PartnerForm from './forms/PartnerForm';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { Partner } from '../types/database';
 
 const bucket = 'partners';
@@ -13,11 +15,25 @@ const PartnersTab: React.FC = () => {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
+  const [deleteTargetPartner, setDeleteTargetPartner] = useState<Partner | null>(null);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchPartners();
   }, []);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const fetchPartners = async () => {
     try {
@@ -29,6 +45,11 @@ const PartnersTab: React.FC = () => {
       setPartners(data || []);
     } catch (error) {
       console.error('Erreur lors du chargement des partenaires:', error);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des partenaires.',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -39,25 +60,51 @@ const PartnersTab: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (p: Partner) => {
-    if (!confirm('Supprimer ce partenaire ?')) return;
+  const handleDeleteClick = (p: Partner) => {
+    setDeleteTargetPartner(p);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetPartner) return;
+
     try {
-      if (p.logo_url) {
-        await supabase.storage.from(bucket).remove([p.logo_url]);
+      setIsDeleting(true);
+      if (deleteTargetPartner.logo_url) {
+        await supabase.storage.from(bucket).remove([deleteTargetPartner.logo_url]);
       }
-      const { error } = await supabase.from('partners').delete().eq('id', p.id);
+      const { error } = await supabase.from('partners').delete().eq('id', deleteTargetPartner.id);
       if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetPartner(null);
+      showNotification(
+        'Partenaire supprimé',
+        'Le partenaire a été supprimé avec succès.',
+        'success'
+      );
       fetchPartners();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression du partenaire.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetPartner(null);
   };
 
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingPartner(null);
   };
-
 
   if (loading) {
     return (
@@ -120,7 +167,7 @@ const PartnersTab: React.FC = () => {
                     <button onClick={() => handleEdit(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <Edit2 size={18} />
                     </button>
-                    <button onClick={() => handleDelete(p)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <button onClick={() => handleDeleteClick(p)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -134,6 +181,31 @@ const PartnersTab: React.FC = () => {
       {showForm && (
         <PartnerForm partner={editingPartner} onClose={handleCloseForm} onSave={fetchPartners} />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer le partenaire"
+        message={deleteTargetPartner ? 
+          `Êtes-vous sûr de vouloir supprimer le partenaire "${deleteTargetPartner.name}" ?\n\nCette action supprimera également tous les fichiers associés et ne peut pas être annulée.` : 
+          ''
+        }
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };

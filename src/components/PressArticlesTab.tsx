@@ -5,6 +5,8 @@ import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import { resolveImageUrl } from '../lib/image';
 import PressArticleForm from './forms/PressArticleForm';
+import ConfirmationModal from './common/ConfirmationModal';
+import NotificationModal from './common/NotificationModal';
 import type { PressArticle } from '../types/database';
 
 const bucket = 'press-articles';
@@ -13,9 +15,23 @@ const PressArticlesTab: React.FC = () => {
   const [articles, setArticles] = useState<PressArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [editingArticle, setEditingArticle] = useState<PressArticle | null>(null);
+  const [deleteTargetArticle, setDeleteTargetArticle] = useState<PressArticle | null>(null);
+  const [notification, setNotification] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ title: '', message: '', type: 'info' });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => { fetchArticles(); }, []);
+
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ title, message, type });
+    setShowNotificationModal(true);
+  };
 
   const fetchArticles = async () => {
     try {
@@ -28,6 +44,11 @@ const PressArticlesTab: React.FC = () => {
       setArticles(data || []);
     } catch (err) {
       console.error('Erreur lors du chargement des articles:', err);
+      showNotification(
+        'Erreur de chargement',
+        'Une erreur est survenue lors du chargement des articles.',
+        'error'
+      );
     } finally {
       setLoading(false);
     }
@@ -38,25 +59,51 @@ const PressArticlesTab: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (article: PressArticle) => {
-    if (!confirm('Supprimer cet article ?')) return;
+  const handleDeleteClick = (article: PressArticle) => {
+    setDeleteTargetArticle(article);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetArticle) return;
+
     try {
-      if (article.logo_url) {
-        await supabase.storage.from(bucket).remove([article.logo_url]);
+      setIsDeleting(true);
+      if (deleteTargetArticle.logo_url) {
+        await supabase.storage.from(bucket).remove([deleteTargetArticle.logo_url]);
       }
-      const { error } = await supabase.from('press_articles').delete().eq('id', article.id);
+      const { error } = await supabase.from('press_articles').delete().eq('id', deleteTargetArticle.id);
       if (error) throw error;
+      
+      setShowDeleteModal(false);
+      setDeleteTargetArticle(null);
+      showNotification(
+        'Article supprimé',
+        'L\'article a été supprimé avec succès.',
+        'success'
+      );
       fetchArticles();
     } catch (err) {
       console.error('Erreur lors de la suppression:', err);
+      showNotification(
+        'Erreur de suppression',
+        'Une erreur est survenue lors de la suppression de l\'article.',
+        'error'
+      );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetArticle(null);
   };
 
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingArticle(null);
   };
-
 
   if (loading) {
     return (
@@ -118,7 +165,7 @@ const PressArticlesTab: React.FC = () => {
                     <button onClick={() => handleEdit(a)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <Edit2 size={18} />
                     </button>
-                    <button onClick={() => handleDelete(a)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <button onClick={() => handleDeleteClick(a)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -136,6 +183,31 @@ const PressArticlesTab: React.FC = () => {
           onSave={fetchArticles}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Supprimer l'article"
+        message={deleteTargetArticle ? 
+          `Êtes-vous sûr de vouloir supprimer cet article ?\n\nTitre: "${deleteTargetArticle.title}"\nPublication: ${deleteTargetArticle.publication}\n\nCette action ne peut pas être annulée.` : 
+          ''
+        }
+        confirmText="Supprimer définitivement"
+        cancelText="Annuler"
+        type="danger"
+        loading={isDeleting}
+      />
+
+      <NotificationModal
+        isOpen={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+        autoClose={notification.type === 'success'}
+        autoCloseDelay={3000}
+      />
     </div>
   );
 };
