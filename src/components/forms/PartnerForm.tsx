@@ -115,6 +115,15 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
     if (file) setLogoPreview(URL.createObjectURL(file));
   };
 
+  // Function to show all unselected specializations
+  const showAllUnselectedSpecializations = () => {
+    const unselected = allSpecializations.filter(spec => 
+      !formData.specializations.includes(spec)
+    );
+    setFilteredSuggestions(unselected);
+    setShowSuggestions(unselected.length > 0);
+  };
+
   // Specialization combobox functions
   const handleSpecializationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -128,7 +137,8 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
       setFilteredSuggestions(filtered);
       setShowSuggestions(true);
     } else {
-      setShowSuggestions(false);
+      // Show all unselected specializations when input is empty
+      showAllUnselectedSpecializations();
     }
   };
 
@@ -355,26 +365,35 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
                     onChange={handleSpecializationInputChange}
                     onKeyDown={handleSpecializationInputKeyDown}
                     onFocus={() => {
-                      if (specializationInput.trim() && filteredSuggestions.length > 0) {
-                        setShowSuggestions(true);
+                      if (specializationInput.trim()) {
+                        if (filteredSuggestions.length > 0) {
+                          setShowSuggestions(true);
+                        }
+                      } else {
+                        // Show all unselected specializations when focusing on empty input
+                        showAllUnselectedSpecializations();
                       }
                     }}
                     onBlur={() => {
                       // Delay hiding suggestions to allow clicking on them
                       setTimeout(() => setShowSuggestions(false), 200);
                     }}
-                    placeholder="Tapez une spécialisation ou sélectionnez dans la liste..."
+                    placeholder="Tapez une spécialisation ou cliquez sur la flèche pour voir toutes les options..."
                     className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <ChevronDown 
-                    size={16} 
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400" 
-                  />
+                  <button
+                    type="button"
+                    onClick={showAllUnselectedSpecializations}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Voir toutes les spécialisations disponibles"
+                  >
+                    <ChevronDown size={16} />
+                  </button>
                   
                   {/* Suggestions Dropdown */}
                   {showSuggestions && filteredSuggestions.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                      {filteredSuggestions.slice(0, 10).map((suggestion, index) => (
+                      {filteredSuggestions.slice(0, 15).map((suggestion, index) => (
                         <button
                           key={index}
                           type="button"
@@ -384,9 +403,9 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
                           {suggestion}
                         </button>
                       ))}
-                      {filteredSuggestions.length > 10 && (
+                      {filteredSuggestions.length > 15 && (
                         <div className="px-3 py-2 text-xs text-gray-500 border-t">
-                          +{filteredSuggestions.length - 10} autres suggestions...
+                          +{filteredSuggestions.length - 15} autres suggestions...
                         </div>
                       )}
                     </div>
@@ -406,7 +425,7 @@ const PartnerForm: React.FC<PartnerFormProps> = ({ partner, onClose, onSave }) =
               {/* Available specializations hint */}
               {!specializationsLoading && allSpecializations.length > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
-                  {allSpecializations.length} spécialisation(s) disponible(s) dans la base de données
+                  {allSpecializations.length} spécialisation(s) disponible(s) dans la base de données • Cliquez sur la flèche pour toutes les voir
                 </p>
               )}
             </div>
