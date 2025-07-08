@@ -9,6 +9,32 @@ import type { EventPhoto, Event } from '../types/database';
 
 const bucket = 'event-photos';
 
+// Utility function to extract file path from Supabase storage URL or return the path as-is
+const extractFilePathFromUrl = (urlOrPath: string): string => {
+  if (!urlOrPath) return '';
+  
+  // If it's already a relative path, return as-is
+  if (!urlOrPath.startsWith('http')) {
+    return urlOrPath;
+  }
+  
+  // Extract path from Supabase storage URL
+  // URL format: https://[project].supabase.co/storage/v1/object/public/[bucket]/[path]
+  const url = new URL(urlOrPath);
+  const pathParts = url.pathname.split('/');
+  const bucketIndex = pathParts.findIndex(part => part === bucket);
+  
+  if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+    // Return everything after the bucket name
+    return pathParts.slice(bucketIndex + 1).join('/');
+  }
+  
+  // Fallback: try to extract anything after the last occurrence of bucket name
+  const bucketPattern = new RegExp(`/${bucket}/(.+)$`);
+  const match = urlOrPath.match(bucketPattern);
+  return match ? match[1] : urlOrPath;
+};
+
 interface EventPhotosTabProps {
   initialFilterEventId: string | null;
   onFilterChange: (eventId: string | null) => void;
@@ -123,12 +149,26 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
 
     try {
       setIsDeleting(true);
-      await supabase.storage.from(bucket).remove([deleteTargetPhoto.src]);
+      
+      // Extract the correct file path for deletion
+      const filePath = extractFilePathFromUrl(deleteTargetPhoto.src);
+      console.log('Attempting to delete file:', filePath); // Debug log
+      
+      const { error: storageError } = await supabase.storage.from(bucket).remove([filePath]);
+      if (storageError) {
+        console.error('Storage deletion error:', storageError);
+        throw new Error(`Erreur de suppression du fichier: ${storageError.message}`);
+      }
+      
       const { error } = await supabase
         .from('event_photos')
         .delete()
         .eq('id', deleteTargetPhoto.id);
-      if (error) throw error;
+        
+      if (error) {
+        console.error('Database deletion error:', error);
+        throw new Error(`Erreur de suppression de la base de données: ${error.message}`);
+      }
       
       setShowDeleteModal(false);
       setDeleteTargetPhoto(null);
@@ -140,9 +180,10 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
       fetchPhotos();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de la suppression';
       showNotification(
         'Erreur de suppression',
-        'Une erreur est survenue lors de la suppression de la photo.',
+        errorMessage,
         'error'
       );
     } finally {
