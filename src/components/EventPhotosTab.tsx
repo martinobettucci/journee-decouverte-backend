@@ -150,16 +150,22 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
     try {
       setIsDeleting(true);
       
-      // Extract the correct file path for deletion
+      // First, try to delete the file from storage
       const filePath = extractFilePathFromUrl(deleteTargetPhoto.src);
-      console.log('Attempting to delete file:', filePath); // Debug log
+      console.log('Attempting to delete file from storage:', filePath);
       
-      const { error: storageError } = await supabase.storage.from(bucket).remove([filePath]);
-      if (storageError) {
-        console.error('Storage deletion error:', storageError);
-        throw new Error(`Erreur de suppression du fichier: ${storageError.message}`);
+      if (filePath) {
+        const { error: storageError } = await supabase.storage.from(bucket).remove([filePath]);
+        if (storageError) {
+          console.error('Storage deletion error:', storageError);
+          // Don't throw here - continue with database deletion even if storage fails
+          console.warn(`Could not delete file from storage: ${storageError.message}`);
+        } else {
+          console.log('File successfully deleted from storage');
+        }
       }
       
+      // Then delete the database record
       const { error } = await supabase
         .from('event_photos')
         .delete()
@@ -174,7 +180,9 @@ const EventPhotosTab: React.FC<EventPhotosTabProps> = ({ initialFilterEventId, o
       setDeleteTargetPhoto(null);
       showNotification(
         'Photo supprimée',
-        'La photo a été supprimée avec succès.',
+        filePath 
+          ? 'La photo et le fichier ont été supprimés avec succès.'
+          : 'La photo a été supprimée de la base de données.',
         'success'
       );
       fetchPhotos();
