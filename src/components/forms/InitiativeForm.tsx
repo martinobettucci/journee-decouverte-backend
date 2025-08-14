@@ -122,19 +122,41 @@ const InitiativeForm: React.FC<InitiativeFormProps> = ({ initiative, onClose, on
       let imagePath = formData.image_url;
       let logoPath = formData.logo_url;
 
+      // Handle image upload
       if (imageFile) {
         const ext = imageFile.name.split('.').pop();
         const fileName = `image-${Date.now()}.${ext}`;
         const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, imageFile, { upsert: true });
         if (uploadError) throw uploadError;
+        
+        // Delete old image if updating and there was a previous image
+        if (initiative && initiative.image_url && initiative.image_url !== fileName) {
+          try {
+            await supabase.storage.from(bucket).remove([initiative.image_url]);
+          } catch (deleteError) {
+            console.warn('Could not delete old image:', deleteError);
+          }
+        }
+        
         imagePath = fileName;
       }
 
+      // Handle logo upload
       if (logoFile) {
         const ext = logoFile.name.split('.').pop();
         const fileName = `logo-${Date.now()}.${ext}`;
         const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, logoFile, { upsert: true });
         if (uploadError) throw uploadError;
+        
+        // Delete old logo if updating and there was a previous logo
+        if (initiative && initiative.logo_url && initiative.logo_url !== fileName) {
+          try {
+            await supabase.storage.from(bucket).remove([initiative.logo_url]);
+          } catch (deleteError) {
+            console.warn('Could not delete old logo:', deleteError);
+          }
+        }
+        
         logoPath = fileName;
       }
 
@@ -218,11 +240,17 @@ const InitiativeForm: React.FC<InitiativeFormProps> = ({ initiative, onClose, on
             <div>
               <label className="block text-sm font-medium text-gray-700">Image</label>
               <input type="file" accept="image/*" onChange={handleImageChange} className="mt-1" />
+              <p className="text-xs text-gray-500 mt-1">
+                {initiative ? 'Sélectionnez un nouveau fichier pour remplacer l\'image actuelle' : 'Sélectionnez une image'}
+              </p>
               {imagePreview && <img src={imagePreview} alt="Preview" className="mt-2 h-24" />}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Logo</label>
               <input type="file" accept="image/*" onChange={handleLogoChange} className="mt-1" />
+              <p className="text-xs text-gray-500 mt-1">
+                {initiative ? 'Sélectionnez un nouveau fichier pour remplacer le logo actuel' : 'Sélectionnez un logo'}
+              </p>
               {logoPreview && <img src={logoPreview} alt="Preview" className="mt-2 h-24" />}
             </div>
           </div>
