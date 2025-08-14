@@ -166,6 +166,7 @@ export interface MediaHighlight {
   url: string | null;
   video_id: string | null;
   image_url: string;
+  disabled: boolean;
   created_at?: string;
 }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, ExternalLink } from 'lucide-react';
+import { X, Save, ExternalLink, EyeOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { resolveImageUrl } from '../../lib/image';
 import type { MediaHighlight } from '../../types/database';
@@ -20,7 +20,8 @@ const MediaHighlightForm: React.FC<MediaHighlightFormProps> = ({ highlight, onCl
     video_id: '',
     url: '',
     media_logo: '',
-    image_url: ''
+    image_url: '',
+    disabled: false
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -38,7 +39,8 @@ const MediaHighlightForm: React.FC<MediaHighlightFormProps> = ({ highlight, onCl
         video_id: highlight.video_id || '',
         url: highlight.url || '',
         media_logo: highlight.media_logo,
-        image_url: highlight.image_url
+        image_url: highlight.image_url,
+        disabled: highlight.disabled || false
       });
       if (highlight.media_logo)
         setLogoPreview(resolveImageUrl(highlight.media_logo, bucket, supabase));
@@ -93,7 +95,8 @@ const MediaHighlightForm: React.FC<MediaHighlightFormProps> = ({ highlight, onCl
         video_id: formData.video_id || null,
         url: formData.url || null,
         media_logo: logoUrl,
-        image_url: imageUrl
+        image_url: imageUrl,
+        disabled: formData.disabled
       };
 
       if (highlight) {
@@ -202,6 +205,25 @@ const MediaHighlightForm: React.FC<MediaHighlightFormProps> = ({ highlight, onCl
               {imagePreview && <img src={imagePreview} alt="Preview" className="mt-2 h-24" />}
             </div>
           </div>
+
+          <div>
+            <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.disabled}
+                onChange={(e) => setFormData(prev => ({ ...prev, disabled: e.target.checked }))}
+                className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+              />
+              <div className="flex items-center space-x-2">
+                <EyeOff size={16} className="text-red-600" />
+                <span className="text-sm text-gray-700">Désactiver ce média</span>
+              </div>
+            </label>
+            <p className="text-xs text-gray-500 mt-2 ml-7">
+              Les médias désactivés ne seront pas affichés publiquement mais restent accessibles en administration.
+            </p>
+          </div>
+
           <div className="flex justify-end space-x-3 pt-4 border-t">
             <button
               type="button"
