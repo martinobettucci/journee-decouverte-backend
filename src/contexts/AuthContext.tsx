@@ -91,34 +91,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
 
-    // The profile will be created automatically by the database trigger
-    // We'll update the name fields after the user is created
-    if (!error) {
-      // Wait a moment for the trigger to complete, then update the profile
-      setTimeout(async () => {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            await supabase
-              .from('user_profiles')
-              .update({
-                first_name: firstName,
-                last_name: lastName
-              })
-              .eq('user_id', user.id);
-          }
-        } catch (updateError) {
-          console.warn('Could not update profile names after signup:', updateError);
+    if (error) return { error };
+
+    // Create the profile with first and last name after signup
+    if (data.user) {
+      try {
+        // Check if this is the first user (should get backoffice role)
+        const { data: existingBackoffice } = await supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('role', 'backoffice')
+          .single();
+
+        const role = existingBackoffice ? 'user' : 'backoffice';
+
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: data.user.id,
+            first_name: firstName,
+            last_name: lastName,
+            role: role
+          });
+
+        if (profileError) {
+          console.error('Error creating profile after signup:', profileError);
         }
-      }, 1000);
+      } catch (profileError) {
+        console.error('Error creating profile after signup:', profileError);
+      }
     }
 
-    return { error };
+    return { error: null };
   };
 
   const signOut = async () => {
