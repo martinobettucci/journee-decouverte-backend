@@ -3,7 +3,7 @@ import { User } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/auth/LoginPage';
 import ProfilePage from './components/auth/ProfilePage';
-import Navigation from './components/Navigation';
+import Sidebar from './components/Sidebar';
 import EventsTab from './components/EventsTab';
 import EventPhotosTab from './components/EventPhotosTab';
 import WorkshopsTab from './components/WorkshopsTab';
@@ -187,9 +187,12 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
+      
+      <div className="flex-1 flex flex-col">
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
@@ -221,11 +224,10 @@ function AppContent() {
         </div>
       </header>
 
-      <Navigation activeTab={activeTab} onTabChange={handleTabChange} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-8 overflow-y-auto">
         {renderActiveTab()}
       </main>
+      </div>
     </div>
   );
 }
