@@ -62,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -69,7 +70,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
-        console.error('Error fetching user profile:', error);
+        if (error.code === 'PGRST116') {
+          // No profile found, this is expected for new users
+          console.log('No profile found for user:', userId);
+        } else {
+          console.error('Error fetching user profile:', error);
+        }
         setProfile(null);
       } else {
         setProfile(data);
@@ -83,19 +89,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signIn = async (email: string, password: string) => {
+    setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    // Don't set loading to false here - let the auth state change handle it
     return { error };
   };
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+    setLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
 
+    // Don't set loading to false here - let the auth state change handle it
     return { error };
   };
 
