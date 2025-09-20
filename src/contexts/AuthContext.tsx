@@ -98,18 +98,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (error) return { error };
 
-    // Update the profile with first and last name after signup
+    // Create the profile with first and last name after signup
     if (data.user) {
       try {
-        await supabase
+        // Check if this is the first user (should get backoffice role)
+        const { data: existingBackoffice } = await supabase
           .from('user_profiles')
-          .update({
+          .select('id')
+          .eq('role', 'backoffice')
+          .single();
+
+        const role = existingBackoffice ? 'user' : 'backoffice';
+
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: data.user.id,
             first_name: firstName,
-            last_name: lastName
-          })
-          .eq('user_id', data.user.id);
+            last_name: lastName,
+            role: role
+          });
+
+        if (profileError) {
+          console.error('Error creating profile after signup:', profileError);
+        }
       } catch (profileError) {
-        console.error('Error updating profile after signup:', profileError);
+        console.error('Error creating profile after signup:', profileError);
       }
     }
 
