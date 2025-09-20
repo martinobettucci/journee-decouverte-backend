@@ -29,8 +29,10 @@ function AppContent() {
   const { user, profile, loading } = useAuth();
 
   useEffect(() => {
-    fetchWorkshopDates();
-  }, []);
+    if (user) {
+      fetchWorkshopDates();
+    }
+  }, [user]);
 
   const fetchWorkshopDates = async () => {
     try {
@@ -143,7 +145,7 @@ function AppContent() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex items-center space-x-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="text-gray-700">Chargement...</span>
+          <span className="text-gray-700">Vérification de l'authentification...</span>
         </div>
       </div>
     );

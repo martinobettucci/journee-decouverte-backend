@@ -29,22 +29,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
-        setLoading(false);
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) {
+            setLoading(false);
+            setInitialized(true);
+          }
+          return;
+        }
+
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+        }
+
+        if (session?.user && mounted) {
+          await fetchUserProfile(session.user.id);
+        }
+
+        if (mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        if (mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+
+        console.log('Auth state change:', event, session?.user?.id);
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -52,17 +86,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await fetchUserProfile(session.user.id);
         } else {
           setProfile(null);
+        }
+
+        if (initialized) {
           setLoading(false);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -71,41 +110,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         if (error.code === 'PGRST116') {
-          // No profile found, this is expected for new users
+          // No profile found - this is expected for new users
           console.log('No profile found for user:', userId);
+          setProfile(null);
         } else {
           console.error('Error fetching user profile:', error);
+          setProfile(null);
         }
-        setProfile(null);
       } else {
         setProfile(data);
       }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       setProfile(null);
-    } finally {
-      setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
-    setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    // Don't set loading to false here - let the auth state change handle it
     return { error };
   };
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
-    setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
     });
-
-    // Don't set loading to false here - let the auth state change handle it
     return { error };
   };
 
@@ -122,7 +155,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .eq('user_id', user.id);
 
     if (!error) {
-      // Refresh profile data
       await fetchUserProfile(user.id);
     }
 
