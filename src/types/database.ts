@@ -193,3 +193,19 @@ export interface Partner {
   locations: string[] | null;
   collaboration_status: string | null;
 }
+
+export interface User {
+  id: string;
+  email: string;
+  created_at?: string;
+}
+
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  role: 'user' | 'admin' | 'backoffice';
+  created_at?: string;
+  updated_at?: string;
+}

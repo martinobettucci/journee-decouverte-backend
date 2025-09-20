@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { User } from 'lucide-react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import LoginPage from './components/auth/LoginPage';
+import ProfilePage from './components/auth/ProfilePage';
 import Navigation from './components/Navigation';
 import EventsTab from './components/EventsTab';
 import EventPhotosTab from './components/EventPhotosTab';
@@ -15,11 +19,14 @@ import PressArticlesTab from './components/PressArticlesTab';
 import PartnersTab from './components/PartnersTab';
 import { supabase } from './lib/supabase';
 
-function App() {
+function AppContent() {
   const [activeTab, setActiveTab] = useState('events');
+  const [showProfile, setShowProfile] = useState(false);
   const [selectedWorkshopDate, setSelectedWorkshopDate] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [allWorkshopDates, setAllWorkshopDates] = useState<string[]>([]);
+
+  const { user, profile, loading } = useAuth();
 
   useEffect(() => {
     fetchWorkshopDates();
@@ -130,16 +137,85 @@ function App() {
     }
   };
 
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center space-x-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="text-gray-700">Chargement...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!user || !profile) {
+    return <LoginPage />;
+  }
+
+  // Show profile page if requested
+  if (showProfile) {
+    return <ProfilePage onBack={() => setShowProfile(false)} />;
+  }
+
+  // Check if user has backoffice role
+  if (profile.role !== 'backoffice') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <User className="text-red-600" size={24} />
+          </div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">
+            Accès non autorisé
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Vous n'avez pas les permissions nécessaires pour accéder à cette interface d'administration.
+          </p>
+          <button
+            onClick={() => setShowProfile(true)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md font-medium transition-colors"
+          >
+            Voir mon profil
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Administration - Événements & Ateliers
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Gestion centralisée des événements, ateliers, formateurs et inscriptions
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Administration - Événements & Ateliers
+              </h1>
+              <p className="mt-2 text-gray-600">
+                Gestion centralisée des événements, ateliers, formateurs et inscriptions
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {profile.first_name && profile.last_name 
+                    ? `${profile.first_name} ${profile.last_name}`
+                    : 'Utilisateur'
+                  }
+                </p>
+                <p className="text-xs text-gray-600">{user.email}</p>
+              </div>
+              <button
+                onClick={() => setShowProfile(true)}
+                className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <User size={20} />
+                <span className="hidden sm:inline">Profil</span>
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -149,6 +225,14 @@ function App() {
         {renderActiveTab()}
       </main>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
