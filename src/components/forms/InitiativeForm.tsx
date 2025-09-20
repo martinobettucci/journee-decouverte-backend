@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus, Trash2 } from 'lucide-react';
+import { X, Save, Plus, Trash2, Linkedin, MessageSquare, CalendarClock, Facebook, Instagram, Twitter, Youtube, Github, Mail, Phone, MessageCircle, Send, Video, Zap, Music, Play, AtSign, Hash, Heart, Camera, Globe, Rss, Briefcase, GraduationCap, Users, Gamepad2, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { resolveImageUrl } from '../../lib/image';
 import type { Initiative, InitiativeSocialLink } from '../../types/database';
@@ -11,6 +11,49 @@ interface InitiativeFormProps {
 }
 
 const bucket = 'initiatives';
+
+const socialIconMap: Record<string, React.ComponentType<any>> = {
+  linkedin: Linkedin,
+  discord: MessageSquare,
+  calendar: CalendarClock,
+  facebook: Facebook,
+  instagram: Instagram,
+  twitter: Twitter,
+  x: Twitter, // Alias pour Twitter/X
+  youtube: Youtube,
+  github: Github,
+  email: Mail,
+  mail: Mail,
+  phone: Phone,
+  whatsapp: MessageCircle,
+  telegram: Send,
+  tiktok: Video,
+  twitch: Zap,
+  spotify: Music,
+  apple: Play,
+  google: AtSign,
+  reddit: Hash,
+  pinterest: Heart,
+  snapchat: Camera,
+  website: Globe,
+  blog: Rss,
+  portfolio: Briefcase,
+  education: GraduationCap,
+  community: Users,
+  gaming: Gamepad2,
+  music: Music,
+  video: Video,
+  podcast: Play,
+  newsletter: Mail,
+  rss: Rss,
+  external: ExternalLink
+};
+
+const socialTypeOptions = Object.keys(socialIconMap).map(key => ({
+  value: key,
+  label: key.charAt(0).toUpperCase() + key.slice(1),
+  icon: socialIconMap[key]
+}));
 
 const InitiativeForm: React.FC<InitiativeFormProps> = ({ initiative, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -320,7 +363,7 @@ const InitiativeForm: React.FC<InitiativeFormProps> = ({ initiative, onClose, on
             </div>
             {formData.social_links.length === 0 && <p className="text-sm text-gray-500">Aucun lien ajouté</p>}
             {formData.social_links.map((link, idx) => (
-              <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2 items-center">
+              <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2 items-end">
                 <input
                   type="url"
                   placeholder="URL"
@@ -328,21 +371,35 @@ const InitiativeForm: React.FC<InitiativeFormProps> = ({ initiative, onClose, on
                   onChange={e => updateSocialLink(idx, 'url', e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <input
-                  type="text"
-                  placeholder="Type"
-                  value={link.type}
-                  onChange={e => updateSocialLink(idx, 'type', e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
+                  <select
+                    value={link.type}
+                    onChange={e => updateSocialLink(idx, 'type', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Sélectionner un type</option>
+                    {socialTypeOptions.map(option => {
+                      const IconComponent = option.icon;
+                      return (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
                 <div className="flex items-center space-x-2">
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Label</label>
                   <input
                     type="text"
                     placeholder="Label"
                     value={link.label}
                     onChange={e => updateSocialLink(idx, 'label', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                  </div>
                   <button type="button" onClick={() => removeSocialLink(idx)} className="text-red-600 hover:text-red-800">
                     <Trash2 size={16} />
                   </button>
