@@ -17,6 +17,7 @@ import FaqsTab from './components/FaqsTab';
 import MediaHighlightsTab from './components/MediaHighlightsTab';
 import PressArticlesTab from './components/PressArticlesTab';
 import PartnersTab from './components/PartnersTab';
+import StorageTab from './components/StorageTab';
 import { supabase } from './lib/supabase';
 
 function AppContent() {
@@ -134,6 +135,8 @@ function AppContent() {
         return <PartnersTab />;
       case 'media-highlights':
         return <MediaHighlightsTab />;
+      case 'storage':
+        return <StorageTab />;
       default:
         return <EventsTab />;
     }

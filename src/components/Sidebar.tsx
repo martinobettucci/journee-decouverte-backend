@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, UserCheck, FileText, Settings, Contact as FileContract, Image, MessageSquare, HelpCircle, Lightbulb, Newspaper, Handshake, Globe, GraduationCap } from 'lucide-react';
+import { Calendar, Users, UserCheck, FileText, Settings, Contact as FileContract, Image, MessageSquare, HelpCircle, Lightbulb, Newspaper, Handshake, Globe, GraduationCap, HardDrive } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -16,6 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
     { id: 'press-articles', label: 'Presse', icon: Newspaper },
     { id: 'partners', label: 'Partenaires', icon: Handshake },
     { id: 'media-highlights', label: 'Médias', icon: Newspaper },
+    { id: 'storage', label: 'Stockage', icon: HardDrive },
   ];
 
   const journeesDecouverteTabs = [
