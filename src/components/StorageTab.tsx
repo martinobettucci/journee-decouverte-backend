@@ -449,15 +449,71 @@ const StorageTab: React.FC = () => {
                       <h4 className="font-medium text-orange-900 mb-3">Fichiers orphelins:</h4>
                       <div className="max-h-48 overflow-y-auto space-y-2">
                         {bucket.orphanedFiles.map((file, index) => (
-                          <div key={index} className="flex items-center justify-between bg-white p-3 rounded border">
-                            <div className="flex items-center space-x-3">
-                              <File className="text-gray-400" size={16} />
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                                <p className="text-xs text-gray-500">
-                                  {formatFileSize(file.metadata?.size || 0)} • 
-                                  Créé le {new Date(file.created_at).toLocaleDateString('fr-FR')}
+                          <div key={index} className="bg-white p-4 rounded border hover:shadow-sm transition-shadow">
+                            <div className="flex items-start space-x-4">
+                              {/* File Preview */}
+                              <div className="flex-shrink-0">
+                                {file.metadata?.mimetype?.startsWith('image/') ? (
+                                  <img
+                                    src={supabase.storage.from(bucket.bucket).getPublicUrl(file.name).data.publicUrl}
+                                    alt={file.name}
+                                    className="w-16 h-16 object-cover rounded border border-gray-200"
+                                    onError={(e) => {
+                                      // Fallback to file icon if image fails to load
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      target.nextElementSibling?.classList.remove('hidden');
+                                    }}
+                                  />
+                                ) : null}
+                                <div className={`w-16 h-16 bg-gray-100 rounded border border-gray-200 flex items-center justify-center ${file.metadata?.mimetype?.startsWith('image/') ? 'hidden' : ''}`}>
+                                  <File className="text-gray-400" size={24} />
+                                </div>
+                              </div>
+                              
+                              {/* File Information */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
+                                  {file.name}
                                 </p>
+                                <div className="mt-1 space-y-1">
+                                  <p className="text-xs text-gray-500">
+                                    <span className="font-medium">Taille:</span> {formatFileSize(file.metadata?.size || 0)}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    <span className="font-medium">Type:</span> {file.metadata?.mimetype || 'Inconnu'}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    <span className="font-medium">Créé:</span> {new Date(file.created_at).toLocaleDateString('fr-FR', {
+                                      day: '2-digit',
+                                      month: '2-digit', 
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    <span className="font-medium">Modifié:</span> {new Date(file.updated_at).toLocaleDateString('fr-FR', {
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {/* File Actions */}
+                              <div className="flex-shrink-0">
+                                <a
+                                  href={supabase.storage.from(bucket.bucket).getPublicUrl(file.name).data.publicUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                                >
+                                  Voir
+                                </a>
                               </div>
                             </div>
                           </div>
